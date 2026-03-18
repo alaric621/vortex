@@ -1,0 +1,134 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "vht",
+  "scopeName": "source.vht",
+  "patterns": [
+    {
+      "include": "#request"
+    },
+    {
+      "include": "#interceptor-pre"
+    },
+    {
+      "include": "#json-body-container"
+    },
+    {
+      "include": "#interceptor-post"
+    }
+  ],
+  "repository": {
+    "request": {
+      "name": "meta.request.http",
+      "begin": "^(GET|POST|PUT|DELETE|PATCH|HEAD|OPTIONS|CONNECT|TRACE|WEBSOCKET|SSE|EVENTSOURCE|SUBSCRIBE|UNSUBSCRIBE)\\b",
+      "end": "^(?=\\s*$)",
+      "beginCaptures": {
+        "1": {
+          "name": "keyword.control.http"
+        }
+      },
+      "patterns": [
+        {
+          "include": "#js-expression"
+        },
+        {
+          "include": "#header-line"
+        }
+      ]
+    },
+    "json-body-container": {
+      "name": "meta.body.json.container.vht",
+      "begin": "^\\s*$",
+      "end": "(?=^>>>|^<<<|^(GET|POST|PUT|DELETE|PATCH|HEAD|OPTIONS|WEBSOCKET|SSE|EVENTSOURCE|SUBSCRIBE|UNSUBSCRIBE)\\b)",
+      "patterns": [
+        {
+          "include": "#js-expression"
+        },
+        {
+          "include": "source.json"
+        }
+      ]
+    },
+    "header-line": {
+      "begin": "^(?=[\\w-]|\\{\\{)",
+      "end": "$",
+      "patterns": [
+        {
+          "include": "#js-expression"
+        },
+        {
+          "match": "^[\\w-]+(?=:)",
+          "name": "constant.language.header.key"
+        },
+        {
+          "match": ":",
+          "name": "punctuation.separator.key-value.http"
+        },
+        {
+          "name": "string.unquoted.header.value",
+          "match": "[^\\{\\}]+"
+        },
+        {
+          "name": "string.unquoted.header.value",
+          "match": "."
+        }
+      ]
+    },
+    "js-expression": {
+      "begin": "(\\{\\{)",
+      "beginCaptures": {
+        "1": {
+          "name": "constant.numeric.vht"
+        }
+      },
+      "end": "(\\}\\})",
+      "endCaptures": {
+        "1": {
+          "name": "constant.numeric.vht"
+        }
+      },
+      "patterns": [
+        {
+          "name": "meta.embedded.inline.javascript",
+          "begin": "(?<=^|\\{\\{)",
+          "end": "(?=\\}\\})",
+          "contentName": "source.js",
+          "patterns": [
+            {
+              "include": "source.js"
+            }
+          ]
+        }
+      ]
+    },
+    "interceptor-pre": {
+      "begin": "^>>>\\s*$",
+      "beginCaptures": {
+        "0": {
+          "name": "keyword.control.interceptor.vht"
+        }
+      },
+      "end": "(?=^<<<|^(GET|POST|PUT|DELETE|PATCH|HEAD|OPTIONS|WEBSOCKET|SSE|EVENTSOURCE|SUBSCRIBE|UNSUBSCRIBE)\\b)",
+      "contentName": "hook.block.javascript",
+      "patterns": [
+        {
+          "include": "source.js"
+        }
+      ]
+    },
+    "interceptor-post": {
+      "begin": "^<<<\\s*$",
+      "beginCaptures": {
+        "0": {
+          "name": "keyword.control.interceptor.vht"
+        }
+      },
+      "end": "(?=^(GET|POST|PUT|DELETE|PATCH|HEAD|OPTIONS|WEBSOCKET|SSE|EVENTSOURCE|SUBSCRIBE|UNSUBSCRIBE)\\b)",
+      "contentName": "hook.block.javascript",
+      "patterns": [
+        {
+          "include": "source.js"
+        }
+      ]
+    }
+  }
+}

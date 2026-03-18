@@ -1,0 +1,195 @@
+{
+  "name": "vortex",
+  "displayName": "vortex",
+  "description": "",
+  "version": "0.0.1",
+  "publisher": "alaric",
+  "engines": {
+    "vscode": "^1.109.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onFileSystem:vortex-fs",
+    "workspaceContains:vortex.json"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "resourceLabelFormatters": [
+      {
+        "scheme": "vortex-fs",
+        "formatting": {
+          "label": "${path}",
+          "tildify": true,
+          "separator": "/"
+        }
+      }
+    ],
+    "commands": [
+      {
+        "command": "vortex.request.refresh",
+        "title": "Vortex: Refresh",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "vortex.request.create",
+        "title": "Vortex: Create",
+        "icon": "$(add)"
+      },
+      {
+        "command": "vortex.request.rename",
+        "title": "Vortex: Update",
+        "icon": "$(edit)"
+      },
+      {
+        "command": "vortex.request.delete",
+        "title": "Vortex: Delete",
+        "icon": "$(trash)"
+      },
+      {
+        "command": "vortex.request.send",
+        "title": "Vortex: Send Request",
+        "icon": "$(play)"
+      },
+      {
+        "command": "vortex.request.stop",
+        "title": "Vortex: Stop Request",
+        "icon": "$(debug-stop)"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "vortex.request.create",
+          "when": "view == vortex-explorer",
+          "group": "navigation@1"
+        },
+        {
+          "command": "vortex.request.refresh",
+          "when": "view == vortex-explorer",
+          "group": "navigation@2"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "vortex.request.create",
+          "when": "view == vortex-explorer",
+          "group": "inline@0"
+        },
+        {
+          "command": "vortex.request.send",
+          "when": "view == vortex-explorer && viewItem == vortex.requestNode",
+          "group": "inline@1"
+        }
+      ],
+      "editor/title": [
+        {
+          "command": "vortex.request.send",
+          "when": "resourceExtname == .vht",
+          "group": "navigation@1"
+        }
+      ]
+    },
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "vortex",
+          "title": "vortex",
+          "icon": "$(insert)"
+        }
+      ]
+    },
+    "views": {
+      "vortex": [
+        {
+          "id": "vortex-explorer",
+          "icon": "$(insert)",
+          "name": "Vortex Requests"
+        }
+      ]
+    },
+    "languages": [
+      {
+        "id": "vortex-http",
+        "aliases": [
+          "Vortex HTTP"
+        ],
+        "extensions": [
+          ".vht"
+        ],
+        "configuration": "./syntaxes/vht.language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "vortex-http",
+        "scopeName": "source.vht",
+        "path": "./syntaxes/vht.tmLanguage.json",
+        "embeddedLanguages": {
+          "meta.embedded.inline.javascript": "javascript",
+          "hook.block.javascript": "javascript"
+        }
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "vortex.request.create",
+        "key": "c",
+        "mac": "c",
+        "when": "focusedView == vortex-explorer && !inputFocus"
+      },
+      {
+        "command": "vortex.request.delete",
+        "key": "d",
+        "mac": "backspace",
+        "when": "focusedView == vortex-explorer && listFocus  && !inputFocus && listHasSelectionOrFocus"
+      },
+      {
+        "command": "vortex.request.rename",
+        "key": "a",
+        "mac": "a",
+        "when": "focusedView == vortex-explorer && listFocus  && !inputFocus && listHasSelectionOrFocus"
+      },
+      {
+        "command": "vortex.request.send",
+        "key": "enter",
+        "mac": "enter",
+        "when": "focusedView == vortex-explorer && listFocus && !inputFocus && viewItem == vortex.requestNode"
+      },
+      {
+        "command": "vortex.request.refresh",
+        "key": "r",
+        "mac": "r",
+        "when": "focusedView == vortex-explorer && listFocus && !inputFocus"
+      },
+      {
+        "command": "vortex.request.send",
+        "key": "ctrl+enter",
+        "mac": "cmd+enter",
+        "when": "editorTextFocus && resourceExtname == .vht && vim.mode == 'Normal'"
+      },
+      {
+        "command": "vortex.request.stop",
+        "key": "shift+escape",
+        "mac": "shift+escape",
+        "when": "editorTextFocus && resourceExtname == .vht"
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "test:grammar": "vscode-tmgrammar-test \"sample/**/*.vht\"",
+    "test": "vitest"
+  },
+  "devDependencies": {
+    "@types/node": "22.x",
+    "@types/vscode": "^1.109.0",
+    "msw": "^2.12.11",
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.18",
+    "vscode-tmgrammar-test": "^0.1.3"
+  }
+}

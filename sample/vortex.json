@@ -1,0 +1,95 @@
+{
+      "version": "1.0",
+      "activeEnvironment": "dev",
+      "environments": {
+            "dev": {
+                  "variables": {
+                        "host": "localhost:9501",
+                        "token": "abc"
+                  }
+            }
+      },
+      "folders": [
+            "/fsa/hello",
+            "/fsa/empty-folder",
+            "/team/backend",
+            "/team/backend/deep-empty"
+      ],
+      "collections": [
+            {
+                  "id": "req_mmtjmybx_fnqqjz",
+                  "type": "GET",
+                  "name": "hello",
+                  "folder": "/fsa",
+                  "url": "http://baidu.com",
+                  "ctime": 1710000000000,
+                  "mtime": 1710003600000,
+                  "headers": {},
+                  "body": "",
+                  "scripts": {
+                        "pre": "",
+                        "post": ""
+                  }
+            },
+            {
+                  "id": "req_root_status",
+                  "type": "GET",
+                  "name": "status",
+                  "folder": "/",
+                  "url": "http://localhost:9501/status",
+                  "ctime": 1710100000000,
+                  "mtime": 1710107200000,
+                  "headers": {},
+                  "body": "",
+                  "scripts": {
+                        "pre": "",
+                        "post": ""
+                  }
+            },
+            {
+                  "id": "req_fsa_list",
+                  "type": "GET",
+                  "name": "list",
+                  "folder": "/fsa",
+                  "url": "http://localhost:9501/fsa/list",
+                  "ctime": 1710200000000,
+                  "mtime": 1710201800000,
+                  "headers": {},
+                  "body": "",
+                  "scripts": {
+                        "pre": "",
+                        "post": ""
+                  }
+            },
+            {
+                  "id": "req_team_users",
+                  "type": "GET",
+                  "name": "users",
+                  "folder": "/team",
+                  "url": "http://localhost:9501/team/users",
+                  "ctime": 1710300000000,
+                  "mtime": 1710305400000,
+                  "headers": {},
+                  "body": "",
+                  "scripts": {
+                        "pre": "",
+                        "post": ""
+                  }
+            },
+            {
+                  "id": "req_backend_jobs",
+                  "type": "GET",
+                  "name": "jobs",
+                  "folder": "/team/backend",
+                  "url": "http://localhost:9501/team/backend/jobs",
+                  "ctime": 1710400000000,
+                  "mtime": 1710409000000,
+                  "headers": {},
+                  "body": "",
+                  "scripts": {
+                        "pre": "",
+                        "post": ""
+                  }
+            }
+      ]
+}
