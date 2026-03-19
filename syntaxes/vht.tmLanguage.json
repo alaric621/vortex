@@ -28,6 +28,17 @@
       },
       "patterns": [
         {
+          "match": "^(GET|POST|PUT|DELETE|PATCH|HEAD|OPTIONS|CONNECT|TRACE|WEBSOCKET|SSE|EVENTSOURCE|SUBSCRIBE|UNSUBSCRIBE)(\\s+)(\\S+.*)$",
+          "captures": {
+            "1": {
+              "name": "keyword.control.http"
+            },
+            "3": {
+              "name": "string.unquoted.url.http"
+            }
+          }
+        },
+        {
           "include": "#js-expression"
         },
         {
@@ -49,7 +60,7 @@
       ]
     },
     "header-line": {
-      "begin": "^(?=[\\w-]|\\{\\{)",
+      "begin": "^(?=.*:)(?=[\\w-]|\\{\\{)",
       "end": "$",
       "patterns": [
         {
@@ -65,11 +76,7 @@
         },
         {
           "name": "string.unquoted.header.value",
-          "match": "[^\\{\\}]+"
-        },
-        {
-          "name": "string.unquoted.header.value",
-          "match": "."
+          "match": "(?<=:)\\s*[^\\{\\}\\n]+"
         }
       ]
     },
@@ -101,13 +108,13 @@
       ]
     },
     "interceptor-pre": {
-      "begin": "^>>>\\s*$",
+      "begin": "^\\s*>>>\\s*$",
       "beginCaptures": {
         "0": {
           "name": "keyword.control.interceptor.vht"
         }
       },
-      "end": "(?=^<<<|^(GET|POST|PUT|DELETE|PATCH|HEAD|OPTIONS|WEBSOCKET|SSE|EVENTSOURCE|SUBSCRIBE|UNSUBSCRIBE)\\b)",
+      "end": "(?=^\\s*<<<\\s*$|^(GET|POST|PUT|DELETE|PATCH|HEAD|OPTIONS|WEBSOCKET|SSE|EVENTSOURCE|SUBSCRIBE|UNSUBSCRIBE)\\b)",
       "contentName": "hook.block.javascript",
       "patterns": [
         {
@@ -116,13 +123,13 @@
       ]
     },
     "interceptor-post": {
-      "begin": "^<<<\\s*$",
+      "begin": "^\\s*<<<\\s*$",
       "beginCaptures": {
         "0": {
           "name": "keyword.control.interceptor.vht"
         }
       },
-      "end": "(?=^(GET|POST|PUT|DELETE|PATCH|HEAD|OPTIONS|WEBSOCKET|SSE|EVENTSOURCE|SUBSCRIBE|UNSUBSCRIBE)\\b)",
+      "end": "(?=^\\s*>>>\\s*$|^(GET|POST|PUT|DELETE|PATCH|HEAD|OPTIONS|WEBSOCKET|SSE|EVENTSOURCE|SUBSCRIBE|UNSUBSCRIBE)\\b)",
       "contentName": "hook.block.javascript",
       "patterns": [
         {

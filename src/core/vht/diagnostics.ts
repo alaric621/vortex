@@ -1,0 +1,91 @@
+import * as vscode from 'vscode';
+import { VhtParser } from './parser';
+import { Range as VhtRange } from './types';
+import { collectDiagnosticIssues } from './diagnosticsRules';
+import { VhtDiagnosticIssue } from './diagnosticsRules/types';
+
+export class VhtDiagnostics {
+    private readonly collection: vscode.DiagnosticCollection;
+    private readonly parser: VhtParser;
+
+    constructor() {
+        // 在编辑器“问题”面板中显示的分类名称
+        this.collection = vscode.languages.createDiagnosticCollection('vht-linter');
+        this.parser = new VhtParser();
+    }
+
+    /**
+     * 主更新逻辑：解析文本并同步错误到 VS Code
+     */
+    public update(document: vscode.TextDocument) {
+        if (document.languageId !== 'vht') return;
+
+        const text = document.getText();
+        const ast = this.parser.parse(text);
+        const ruleIssues = collectDiagnosticIssues(ast, text);
+
+        const parserDiagnostics = ast.errors.map(err => this.createParserDiagnostic(err.range, err.message));
+        const ruleDiagnostics = ruleIssues.map(issue => this.createRuleDiagnostic(issue));
+        const diagnostics = [...parserDiagnostics, ...ruleDiagnostics];
+
+        // 更新当前文档的错误集合
+        this.collection.set(document.uri, diagnostics);
+    }
+
+    /**
+     * 当文档关闭时，清除该文档的所有错误记录
+     */
+    public clear(document: vscode.TextDocument) {
+        this.collection.delete(document.uri);
+    }
+
+    /**
+     * 辅助工具：将 AST 内部的 Range 转换为 vscode.Range
+     */
+    private toVsCodeRange(range: VhtRange): vscode.Range {
+        return new vscode.Range(
+            range.start.line,
+            range.start.character,
+            range.end.line,
+            range.end.character
+        );
+    }
+
+    private createParserDiagnostic(range: VhtRange, message: string): vscode.Diagnostic {
+        const diagnostic = new vscode.Diagnostic(
+            this.toVsCodeRange(range),
+            message,
+            vscode.DiagnosticSeverity.Error
+        );
+        diagnostic.source = 'VHT Parser';
+
+        if (message.includes('空行')) {
+            diagnostic.code = 'missing-blank-line';
+        } else if (message.includes('Header')) {
+            diagnostic.code = 'invalid-header';
+        }
+
+        return diagnostic;
+    }
+
+    private createRuleDiagnostic(issue: VhtDiagnosticIssue): vscode.Diagnostic {
+        const diagnostic = new vscode.Diagnostic(
+            this.toVsCodeRange(issue.range),
+            issue.message,
+            this.toSeverity(issue.severity)
+        );
+        diagnostic.code = issue.code;
+        diagnostic.source = issue.source ?? 'VHT Rules';
+        return diagnostic;
+    }
+
+    private toSeverity(severity: VhtDiagnosticIssue['severity']): vscode.DiagnosticSeverity {
+        if (severity === 'error') return vscode.DiagnosticSeverity.Error;
+        if (severity === 'warning') return vscode.DiagnosticSeverity.Warning;
+        return vscode.DiagnosticSeverity.Information;
+    }
+
+    public getCollection() {
+        return this.collection;
+    }
+}
