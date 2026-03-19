@@ -274,7 +274,7 @@ describe("client runtime", () => {
     const lines = panelMocks.panel.appendLine.mock.calls.map(([line]) => String(line));
     expectTransactionFormat(lines, "socket");
     expect(lines).toContain("WEBSOCKET ws://example.test/socket HTTP/1.1");
-    expect(lines).toContain("请求失败");
+    expect(lines).toContain("status: 101 Switching Protocols");
     expect(client.isClientBusy()).toBe(false);
   });
 

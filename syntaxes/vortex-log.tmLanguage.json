@@ -10,6 +10,12 @@
       "include": "#sections"
     },
     {
+      "include": "#json-body"
+    },
+    {
+      "include": "#html-body"
+    },
+    {
       "include": "#key-value"
     },
     {
@@ -105,6 +111,34 @@
               "name": "string.unquoted.url.vortexlog"
             }
           }
+        }
+      ]
+    },
+    "json-body": {
+      "patterns": [
+        {
+          "begin": "^\\s*(\\{|\\[(?!\\d{2}:\\d{2}:\\d{2}\\.\\d{3}\\]))\\s*$",
+          "end": "(?=^\\[\\d{2}:\\d{2}:\\d{2}\\.\\d{3}\\]|^=+\\s+HTTP TRANSACTION END\\s+=+$|^status:|^duration:|^content-type:|^timings:|^(GET|POST|PUT|DELETE|PATCH|HEAD|OPTIONS|CONNECT|TRACE|SUBSCRIBE|UNSUBSCRIBE|WEBSOCKET|SSE|EVENTSOURCE)\\s+((https?|wss?)://[^\\s]+)\\s+HTTP\\/\\d(?:\\.\\d+)?$)",
+          "contentName": "source.json",
+          "patterns": [
+            {
+              "include": "source.json"
+            }
+          ]
+        }
+      ]
+    },
+    "html-body": {
+      "patterns": [
+        {
+          "begin": "^\\s*<(?:!doctype\\s+html|html\\b|head\\b|body\\b|[a-zA-Z][\\w:-]*)",
+          "end": "(?=^\\[\\d{2}:\\d{2}:\\d{2}\\.\\d{3}\\]|^=+\\s+HTTP TRANSACTION END\\s+=+$|^status:|^duration:|^content-type:|^timings:|^(GET|POST|PUT|DELETE|PATCH|HEAD|OPTIONS|CONNECT|TRACE|SUBSCRIBE|UNSUBSCRIBE|WEBSOCKET|SSE|EVENTSOURCE)\\s+((https?|wss?)://[^\\s]+)\\s+HTTP\\/\\d(?:\\.\\d+)?$)",
+          "contentName": "text.html.basic",
+          "patterns": [
+            {
+              "include": "text.html.basic"
+            }
+          ]
         }
       ]
     },

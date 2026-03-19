@@ -228,13 +228,6 @@ async function sendRequestCommand(target?: vscode.TreeItem): Promise<void> {
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     response.error = message;
-    try {
-      await runHook(resolvedRequest.scripts?.post, hookContext);
-    } catch (hookError) {
-      const hookMessage = hookError instanceof Error ? hookError.message : String(hookError);
-      output.appendLine(`[hook-error] ${hookMessage}`);
-      output.show(true);
-    }
     vscode.window.showWarningMessage(message);
   }
 }

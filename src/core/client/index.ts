@@ -197,7 +197,7 @@ function toBodyText(response: ClientRunResult): string {
       return response.body;
     }
     const preview = Buffer.from(response.body, "utf8").subarray(0, MAX_PREVIEW_BYTES).toString("utf8");
-    return `${preview}\n...[truncated ${totalBytes - MAX_PREVIEW_BYTES} bytes]`;
+    return `${preview}\n[truncated ${totalBytes - MAX_PREVIEW_BYTES} bytes]`;
   }
 
   if (response.events.length > 0) {
@@ -207,7 +207,7 @@ function toBodyText(response: ClientRunResult): string {
       return raw;
     }
     const preview = Buffer.from(raw, "utf8").subarray(0, MAX_PREVIEW_BYTES).toString("utf8");
-    return `${preview}\n...[truncated ${totalBytes - MAX_PREVIEW_BYTES} bytes]`;
+    return `${preview}\n[truncated ${totalBytes - MAX_PREVIEW_BYTES} bytes]`;
   }
 
   return "[]";
@@ -523,6 +523,8 @@ function sendWebSocketRequest(param: ClientRequestPayload, runtimeResponse: Clie
     };
 
     socket.addEventListener("open", () => {
+      runtimeResponse.status = 101;
+      runtimeResponse.statusText = "Switching Protocols";
       runtimeResponse.meta = {
         ...(runtimeResponse.meta ?? {}),
         protocol: "websocket",

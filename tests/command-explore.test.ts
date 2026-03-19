@@ -285,6 +285,26 @@ describe("registerExploreCommands", () => {
     );
   });
 
+  it("does not execute post hook when send fails", async () => {
+    const errorMessage = "network failed";
+    clientMocks.sendMock.mockRejectedValue(new Error(errorMessage));
+    const sendCommand = getHandler("vortex.request.send");
+
+    await sendCommand({
+      resourceUri: vscode.Uri.from({ scheme: "vortex-fs", authority: "request", path: "/team/users.vht" })
+    });
+
+    expect(hookMocks.runHookMock).toHaveBeenCalledTimes(1);
+    expect(hookMocks.runHookMock).toHaveBeenNthCalledWith(
+      1,
+      "",
+      expect.objectContaining({
+        request: expect.objectContaining({ id: "req_team_users" })
+      })
+    );
+    expect(vscodeMocks.showWarningMessageMock).toHaveBeenCalledWith(errorMessage);
+  });
+
   it("stops the selected request by id", async () => {
     clientMocks.isRequestRunningMock.mockReturnValue(true);
     const stopCommand = getHandler("vortex.request.stop");
