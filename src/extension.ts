@@ -1,4 +1,5 @@
 import * as vscode from "vscode";
+import { isClientBusy, onDidChangeClientState } from "./core/client";
 import { FileSystemProvider } from "./core/filesystem/FileSystemProvider";
 import { ExplorerProvider } from "./views/explore";
 import { registerExploreCommands } from "./command/explore";
@@ -67,10 +68,21 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   });
   const exploreCommands = registerExploreCommands(scheme, authority, fsProvider, explorerProvider);
 
+  const applyClientContext = async (): Promise<void> => {
+    const busy = isClientBusy();
+    await vscode.commands.executeCommand("setContext", "vortex.client.busy", busy);
+  };
+
+  await applyClientContext();
+  const clientStateSubscription = onDidChangeClientState(() => {
+    void applyClientContext();
+  });
+
   context.subscriptions.push(
     exploretreeView,
     completionProvider,
     variableDecorator,
+    clientStateSubscription,
     vscode.workspace.registerFileSystemProvider(scheme, fsProvider),
     ...exploreCommands,
     vscode.commands.registerCommand("vortex.request.refresh", async () => {
