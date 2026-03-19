@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import { getVhtVariables } from '../../env';
 import { VhtParser } from './parser';
 import { Range as VhtRange } from './types';
 import { collectDiagnosticIssues } from './diagnosticsRules';
@@ -41,7 +42,7 @@ export class VhtDiagnostics {
 
         const text = document.getText();
         const ast = this.parser.parse(text);
-        const ruleIssues = collectDiagnosticIssues(ast, text);
+        const ruleIssues = collectDiagnosticIssues(ast, text, getVhtVariables(document.uri));
 
         const parserDiagnostics = ast.errors.map(err => this.createParserDiagnostic(err.range, err.message));
         const ruleDiagnostics = ruleIssues.map(issue => this.createRuleDiagnostic(issue));

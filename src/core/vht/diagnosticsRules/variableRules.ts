@@ -1,11 +1,11 @@
-import { vhtMockVariables } from '../../../env';
+import { getVhtVariables } from '../../../env';
 import { VhtAST } from '../types';
 import { VhtDiagnosticIssue } from './types';
 
 const VARIABLE_OPEN = '{{';
 const VARIABLE_CLOSE = '}}';
 
-export function collectVariableIssues(ast: VhtAST, text: string): VhtDiagnosticIssue[] {
+export function collectVariableIssues(ast: VhtAST, text: string, variables: Record<string, unknown> = getVhtVariables()): VhtDiagnosticIssue[] {
     const issues: VhtDiagnosticIssue[] = [];
     issues.push(...collectBraceIssues(text));
 
@@ -22,7 +22,7 @@ export function collectVariableIssues(ast: VhtAST, text: string): VhtDiagnosticI
             continue;
         }
 
-        const status = validateVariableExpression(expression, vhtMockVariables);
+        const status = validateVariableExpression(expression, variables);
         if (status.kind === 'ok') continue;
 
         if (status.kind === 'syntax-error') {

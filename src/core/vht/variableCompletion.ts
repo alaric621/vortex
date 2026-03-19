@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { vhtMockVariables } from '../../env';
+import { getVhtVariables } from '../../env';
 import { VhtAST } from './types';
 
 export function getVariableCompletions(
@@ -10,7 +10,7 @@ export function getVariableCompletions(
     const context = getVariableContext(document, position, ast);
     if (!context) return [];
 
-    return buildCompletionsByJsLikeContext(context, document, position);
+    return buildCompletionsByJsLikeContext(context, document, position, getVhtVariables(document.uri));
 }
 
 function getVariableContext(
@@ -45,13 +45,14 @@ function getVariableContext(
 function buildCompletionsByJsLikeContext(
     context: { start: number; prefix: string },
     document: vscode.TextDocument,
-    position: vscode.Position
+    position: vscode.Position,
+    variables: Record<string, unknown>
 ): vscode.CompletionItem[] {
     const dotContext = context.prefix.match(/^(.*)\.([A-Za-z_$][\w$]*)?$/);
     if (dotContext) {
         const baseExpr = dotContext[1].trim();
         const propertyPrefix = dotContext[2] ?? '';
-        const resolved = resolveExpressionValue(baseExpr, vhtMockVariables);
+        const resolved = resolveExpressionValue(baseExpr, variables);
         if (resolved.found) {
             const candidates = buildPropertySuggestions(resolved.value);
             return toCompletionItems(
@@ -72,7 +73,7 @@ function buildCompletionsByJsLikeContext(
     if (bracketContext) {
         const baseExpr = bracketContext[1].trim();
         const keyPrefix = bracketContext[2] ?? '';
-        const resolved = resolveExpressionValue(baseExpr, vhtMockVariables);
+        const resolved = resolveExpressionValue(baseExpr, variables);
         if (resolved.found && isPlainObject(resolved.value)) {
             const lineText = document.lineAt(position.line).text;
             const tail = lineText.slice(position.character);
@@ -97,7 +98,7 @@ function buildCompletionsByJsLikeContext(
     }
 
     const rootSuggestions = [
-        ...buildRootVariableSuggestions(vhtMockVariables),
+        ...buildRootVariableSuggestions(variables),
         { label: 'true', insertText: 'true', detail: 'JS 关键字' },
         { label: 'false', insertText: 'false', detail: 'JS 关键字' },
         { label: 'null', insertText: 'null', detail: 'JS 关键字' },
