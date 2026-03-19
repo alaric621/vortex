@@ -57,7 +57,9 @@ const clientMocks = vi.hoisted(() => ({
   }))
 }));
 const hookMocks = vi.hoisted(() => ({
-  runHookStrictMock: vi.fn(() => Promise.resolve())
+  runHookStrictMock: vi.fn<(code: string, scope?: Record<string, any>) => Promise<void>>(
+    () => Promise.resolve()
+  )
 }));
 
 vi.mock("../src/core/client", () => ({
@@ -380,7 +382,13 @@ describe("registerExploreCommands", () => {
       status: 200,
       events: []
     });
-    hookMocks.runHookStrictMock.mockImplementation(async (_code, scope) => {
+    hookMocks.runHookStrictMock.mockImplementation(async (
+      _code: string,
+      scope?: Record<string, any>
+    ) => {
+      if (!scope) {
+        throw new Error("missing hook scope");
+      }
       scope.client.name = "hello";
     });
 

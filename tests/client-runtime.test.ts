@@ -2,8 +2,10 @@ import * as http from "node:http";
 import { AddressInfo } from "node:net";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import clientHttp, {
+  getActiveRequestId,
   isClientBusy,
   isRequestRunning,
+  stop,
   onDidChangeClientState
 } from "../src/core/client";
 
@@ -24,6 +26,8 @@ const METHODS = [
   "DELETE",
   "HEAD",
   "OPTIONS",
+  "SUBSCRIBE",
+  "UNSUBSCRIBE",
   "TRACE",
   "CONNECT"
 ] as const;
@@ -34,7 +38,7 @@ const STATUS_CASES = [200, 201, 204, 400, 404] as const;
 const METHOD_CASES = METHODS.map(method => ({
   method,
   requestId: `req_${method.toLowerCase()}`,
-  headers: method === "POST" ? {} : { "X-Token": "{{client.token}}" },
+  headers: (method === "POST" ? {} : { "X-Token": "{{client.token}}" }) as Record<string, string>,
   body: BODYLESS_METHODS.has(method) ? "" : method === "POST" ? "{\"name\":\"demo\"}" : "{\"env\":\"{{env}}\"}",
   expectedRequestBody: BODYLESS_METHODS.has(method)
     ? ""
@@ -182,11 +186,131 @@ describe("client 请求执行", () => {
   it("占位状态导出应该仍然可调用", () => {
     expect(isClientBusy()).toBe(false);
     expect(isRequestRunning("req_any")).toBe(false);
+    expect(getActiveRequestId()).toBeUndefined();
 
     const disposable = onDidChangeClientState(() => {});
     expect(disposable).toMatchObject({
       dispose: expect.any(Function)
     });
     disposable.dispose();
+  });
+
+  it("supports websocket requests", async () => {
+    class MockWebSocket {
+      public static readonly OPEN = 1;
+      public readonly CLOSING = 2;
+      public readonly CLOSED = 3;
+      public readyState = MockWebSocket.OPEN;
+      private readonly listeners = new Map<string, Array<(event?: any) => void>>();
+
+      constructor(public readonly url: string) {
+        setTimeout(() => this.emit("open"), 0);
+        setTimeout(() => this.emit("message", { data: "first" }), 5);
+        setTimeout(() => this.close(1000, "done"), 10);
+      }
+
+      addEventListener(type: string, listener: (event?: any) => void): void {
+        const handlers = this.listeners.get(type) ?? [];
+        handlers.push(listener);
+        this.listeners.set(type, handlers);
+      }
+
+      send(_data: string): void {}
+
+      close(code = 1000, reason = "closed"): void {
+        this.readyState = this.CLOSED;
+        this.emit("close", { code, reason });
+      }
+
+      private emit(type: string, event?: any): void {
+        for (const listener of this.listeners.get(type) ?? []) {
+          listener(event);
+        }
+      }
+    }
+
+    const runtimeGlobal = globalThis as unknown as { WebSocket?: typeof MockWebSocket };
+    const previousWebSocket = runtimeGlobal.WebSocket;
+    runtimeGlobal.WebSocket = MockWebSocket;
+
+    try {
+      const result = await clientHttp("req_ws", {
+        id: "req_ws",
+        type: "WEBSOCKET",
+        name: "ws",
+        folder: "/",
+        url: "http://example.test/socket",
+        headers: {},
+        body: "{\"ping\":true}"
+      });
+
+      expect(result).toMatchObject({
+        id: "req_ws",
+        status: 101,
+        ok: true,
+        body: "",
+        events: ["first"]
+      });
+    } finally {
+      runtimeGlobal.WebSocket = previousWebSocket;
+    }
+  });
+
+  it.each(["SSE", "EVENTSOURCE"] as const)("supports %s streaming requests", async method => {
+    const server = http.createServer((_req, res) => {
+      res.writeHead(200, { "Content-Type": "text/event-stream" });
+      res.write("event: message\n");
+      res.write("data: first\n\n");
+      res.write("data: second\n\n");
+      res.end();
+    });
+    servers.push(server);
+    const port = await listen(server);
+
+    const result = await clientHttp(`req_${method.toLowerCase()}`, {
+      id: `req_${method.toLowerCase()}`,
+      type: method,
+      name: method.toLowerCase(),
+      folder: "/",
+      url: `http://127.0.0.1:${port}/events`,
+      headers: {},
+      body: ""
+    });
+
+    expect(result).toMatchObject({
+      status: 200,
+      ok: true,
+      body: "",
+      events: ["first", "second"]
+    });
+  });
+
+  it("stops inflight requests through registered stop handlers", async () => {
+    const server = http.createServer((_req, res) => {
+      setTimeout(() => {
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ ok: true }));
+      }, 200);
+    });
+    servers.push(server);
+    const port = await listen(server);
+
+    const pending = clientHttp("req_stop", {
+      id: "req_stop",
+      type: "GET",
+      name: "stop",
+      folder: "/",
+      url: `http://127.0.0.1:${port}/slow`,
+      headers: {},
+      body: ""
+    });
+
+    expect(isRequestRunning("req_stop")).toBe(true);
+    expect(getActiveRequestId()).toBe("req_stop");
+
+    await stop("req_stop");
+
+    await expect(pending).rejects.toThrow();
+    expect(isRequestRunning("req_stop")).toBe(false);
   });
 });
