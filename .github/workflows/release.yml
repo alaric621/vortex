@@ -2,6 +2,8 @@ name: Release
 
 on:
   push:
+    branches:
+      - main
     tags:
       - 'v*.*.*'
   workflow_dispatch:
@@ -37,11 +39,33 @@ jobs:
       - name: Test
         run: npm run test:run
 
+      - name: Resolve release metadata
+        id: meta
+        shell: bash
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            TAG="${GITHUB_REF_NAME}"
+            NAME="Release ${TAG}"
+            PRERELEASE="false"
+          else
+            TS="$(date -u +%Y%m%d-%H%M%S)"
+            SHA_SHORT="${GITHUB_SHA::7}"
+            TAG="nightly-${TS}-${SHA_SHORT}"
+            NAME="Nightly ${TS} (${SHA_SHORT})"
+            PRERELEASE="true"
+          fi
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "name=${NAME}" >> "$GITHUB_OUTPUT"
+          echo "prerelease=${PRERELEASE}" >> "$GITHUB_OUTPUT"
+
       - name: Package VSIX
-        run: npx @vscode/vsce package -o vortex-${{ github.ref_name }}.vsix
+        run: npx @vscode/vsce package -o vortex-${{ steps.meta.outputs.tag }}.vsix
 
       - name: Upload release asset
         uses: softprops/action-gh-release@v2
         with:
-          files: vortex-${{ github.ref_name }}.vsix
+          tag_name: ${{ steps.meta.outputs.tag }}
+          name: ${{ steps.meta.outputs.name }}
+          prerelease: ${{ steps.meta.outputs.prerelease }}
+          files: vortex-${{ steps.meta.outputs.tag }}.vsix
           generate_release_notes: true
