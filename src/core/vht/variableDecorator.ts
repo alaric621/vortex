@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import { VhtParser } from './parser';
 import { VhtAST } from './types';
-import { vhtMockVariables } from '../../env';
+import { getVhtVariables } from '../../env';
 
 type VariableScope = Record<string, unknown>;
 type EvalResult = unknown | typeof UNRESOLVED;
@@ -18,7 +18,6 @@ export class VariableDecorator implements vscode.Disposable {
     private readonly hiddenExpressionDecoration: vscode.TextEditorDecorationType;
     private readonly inlineResolvedDecoration: vscode.TextEditorDecorationType;
     private readonly errorDecoration: vscode.TextEditorDecorationType;
-    private readonly mockVariables: VariableScope;
     private readonly astCache: Map<string, AstCacheEntry>;
     private readonly evalCache: Map<string, EvalResult>;
 
@@ -26,8 +25,6 @@ export class VariableDecorator implements vscode.Disposable {
         this.parser = new VhtParser();
         this.astCache = new Map();
         this.evalCache = new Map();
-        // TODO: 后续替换为真实变量来源（vortex.json activeEnvironment variables）
-        this.mockVariables = vhtMockVariables;
 
         this.hiddenExpressionDecoration = vscode.window.createTextEditorDecorationType({
             color: 'transparent'
@@ -50,6 +47,7 @@ export class VariableDecorator implements vscode.Disposable {
         const inlineResolvedOptions: vscode.DecorationOptions[] = [];
         const errorRanges: vscode.Range[] = [];
         const activePosition = target.selection.active;
+        const variables = getVhtVariables(target.document.uri);
 
         for (const variable of ast.variables) {
             const fullRange = this.toVsCodeRange(variable.range);
@@ -57,7 +55,7 @@ export class VariableDecorator implements vscode.Disposable {
                 // 光标位于变量中时，显示原始内容，方便直接编辑。
                 continue;
             }
-            const resolved = this.resolveExpressionCached(variable.expression);
+            const resolved = this.resolveExpressionCached(variable.expression, variables);
             if (resolved === UNRESOLVED) {
                 errorRanges.push(fullRange);
                 continue;
@@ -112,29 +110,28 @@ export class VariableDecorator implements vscode.Disposable {
         return ast;
     }
 
-    private resolveExpressionCached(expression: string): EvalResult {
-        const cacheKey = expression.trim();
+    private resolveExpressionCached(expression: string, variables: VariableScope): EvalResult {
+        const cacheKey = JSON.stringify([expression.trim(), variables]);
         const cached = this.evalCache.get(cacheKey);
         if (cached !== undefined) {
             return cached;
         }
 
-        const value = this.resolveExpression(cacheKey);
+        const value = this.resolveExpression(expression.trim(), variables);
         const result = value === undefined ? UNRESOLVED : value;
         this.evalCache.set(cacheKey, result);
         return result;
     }
 
-    private resolveExpression(expression: string): unknown {
+    private resolveExpression(expression: string, variables: VariableScope): unknown {
         if (!expression) return undefined;
         try {
-            // 受控变量对象 + 函数构造器，支持 client['api'] / name / 可选链等表达式
             const fn = new Function(
                 'vars',
                 `with (vars) { return (${expression}); }`
             ) as (vars: VariableScope) => unknown;
 
-            return fn(this.mockVariables);
+            return fn(variables);
         } catch {
             return undefined;
         }
