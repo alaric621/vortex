@@ -3,12 +3,18 @@ import { VhtParser } from './parser';
 import { findNodeAtPosition } from './types';
 import { getHeaderCompletions, isInHeaderSection } from './headerCompletion';
 import { getRequestLineCompletions, isInRequestLine } from './requestLineCompletion';
+import { getVariableCompletions } from './variableCompletion';
 
 export class VhtCompletionProvider implements vscode.CompletionItemProvider {
     private readonly parser = new VhtParser();
 
     public provideCompletionItems(document: vscode.TextDocument, position: vscode.Position): vscode.CompletionItem[] {
         const ast = this.parser.parse(document.getText());
+        const variableCompletions = getVariableCompletions(document, position, ast);
+        if (variableCompletions.length > 0) {
+            return variableCompletions;
+        }
+
         const node = findNodeAtPosition(ast.nodes, position.line, position.character);
 
         if (isInHeaderSection(document, ast, position, node)) {

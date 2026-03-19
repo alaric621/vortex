@@ -89,4 +89,22 @@ Content-Type: application/json`;
 
         expect(issues.some(i => i.code === 'invalid-request-version')).toBe(true);
     });
+
+    it('reports unclosed variable opener', () => {
+        const text = `GET http://localhost
+Authorization: Bearer {{name`;
+        const ast = parser.parse(text);
+        const issues = collectDiagnosticIssues(ast, text);
+
+        expect(issues.some(i => i.code === 'unclosed-variable-open')).toBe(true);
+    });
+
+    it('reports unknown variable path', () => {
+        const text = `GET http://localhost
+Authorization: Bearer {{client['missing']}}`;
+        const ast = parser.parse(text);
+        const issues = collectDiagnosticIssues(ast, text);
+
+        expect(issues.some(i => i.code === 'unknown-variable-path')).toBe(true);
+    });
 });

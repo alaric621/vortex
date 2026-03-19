@@ -4,6 +4,7 @@ import { ExplorerProvider } from "./views/explore";
 import { VhtDiagnostics } from './core/vht/diagnostics';
 import { VhtCompletionProvider } from './core/vht/completion';
 import { VariableDecorator } from './core/vht/variableDecorator';
+import { vhtMockVariables } from "./env";
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
   const scheme = "vortex-fs";
   const authority = "request";
@@ -35,26 +36,22 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   context.subscriptions.push(
     vscode.workspace.onDidChangeTextDocument(e => {
       diagnosticManager.update(e.document);
-      const active = vscode.window.activeTextEditor;
-      if (active && active.document.uri.toString() === e.document.uri.toString()) {
-        variableDecorator.scheduleUpdate(active, 56);
-      }
     }),
     vscode.window.onDidChangeTextEditorSelection(e => {
       if (e.textEditor.document.languageId !== 'vht') return;
-      variableDecorator.scheduleUpdate(e.textEditor, 24);
+      variableDecorator.update(e.textEditor);
     }),
     vscode.window.onDidChangeActiveTextEditor(editor => {
       if (!editor) return;
       diagnosticManager.update(editor.document);
-      variableDecorator.scheduleUpdate(editor, 0);
+      variableDecorator.update(editor);
     })
   );
 
   // 初始检查
   if (vscode.window.activeTextEditor) {
     diagnosticManager.update(vscode.window.activeTextEditor.document);
-    variableDecorator.scheduleUpdate(vscode.window.activeTextEditor, 0);
+    variableDecorator.update(vscode.window.activeTextEditor);
   }
 
   const exploretreeView = vscode.window.createTreeView("vortex-explorer", {
@@ -67,11 +64,11 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     completionProvider,
     variableDecorator,
     vscode.workspace.registerFileSystemProvider(scheme, fsProvider),
-
     vscode.commands.registerCommand("vortex.request.refresh", async () => {
+      vhtMockVariables['afsd'] = Math.random()
       fsProvider.refresh();
       explorerProvider.refresh();
-    }),
+    })
   )
 }
 

@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { VhtParser } from './parser';
 import { VhtAST } from './types';
+import { vhtMockVariables } from '../../env';
 
 type VariableScope = Record<string, unknown>;
 type EvalResult = unknown | typeof UNRESOLVED;
@@ -20,22 +21,13 @@ export class VariableDecorator implements vscode.Disposable {
     private readonly mockVariables: VariableScope;
     private readonly astCache: Map<string, AstCacheEntry>;
     private readonly evalCache: Map<string, EvalResult>;
-    private refreshTimer?: NodeJS.Timeout;
-    private pendingEditor?: vscode.TextEditor;
 
     constructor() {
         this.parser = new VhtParser();
         this.astCache = new Map();
         this.evalCache = new Map();
         // TODO: 后续替换为真实变量来源（vortex.json activeEnvironment variables）
-        this.mockVariables = {
-            name: 'demo-user',
-            client: {
-                api: 'demo-api-key-123',
-                token: 'demo-token'
-            },
-            env: 'dev'
-        };
+        this.mockVariables = vhtMockVariables;
 
         this.hiddenExpressionDecoration = vscode.window.createTextEditorDecorationType({
             color: 'transparent'
@@ -46,25 +38,6 @@ export class VariableDecorator implements vscode.Disposable {
             border: '1px dotted',
             borderColor: new vscode.ThemeColor('editorError.foreground')
         });
-    }
-
-    public scheduleUpdate(editor?: vscode.TextEditor, delayMs: number = 48): void {
-        const target = editor ?? vscode.window.activeTextEditor;
-        if (!target) return;
-        if (target.document.languageId !== 'vht') return;
-
-        this.pendingEditor = target;
-        if (this.refreshTimer) {
-            clearTimeout(this.refreshTimer);
-        }
-
-        this.refreshTimer = setTimeout(() => {
-            const current = this.pendingEditor;
-            this.pendingEditor = undefined;
-            this.refreshTimer = undefined;
-            if (!current) return;
-            this.update(current);
-        }, delayMs);
     }
 
     public update(editor?: vscode.TextEditor): void {
@@ -134,10 +107,6 @@ export class VariableDecorator implements vscode.Disposable {
     }
 
     public dispose(): void {
-        if (this.refreshTimer) {
-            clearTimeout(this.refreshTimer);
-            this.refreshTimer = undefined;
-        }
         this.hiddenExpressionDecoration.dispose();
         this.inlineResolvedDecoration.dispose();
         this.errorDecoration.dispose();
