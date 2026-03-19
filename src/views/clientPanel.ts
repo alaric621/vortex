@@ -55,8 +55,9 @@ class ClientPanelViewProvider implements vscode.WebviewViewProvider, ClientLogVi
       return;
     }
 
-    const body = this.lines.length > 0
-      ? this.lines.map(line => renderLine(line)).join("")
+    const entries = buildEntries(this.lines);
+    const body = entries.length > 0
+      ? entries.map((entry, index) => renderEntry(entry, index)).join("")
       : `<div class="empty">No request logs yet.</div>`;
     const copyPayload = escapeJsString(this.lines.join("\n"));
     this.view.webview.html = `<!DOCTYPE html>
@@ -111,17 +112,56 @@ class ClientPanelViewProvider implements vscode.WebviewViewProvider, ClientLogVi
     .log {
       flex: 1 1 auto;
       overflow: auto;
-      padding: 8px 12px 28px;
+      padding: 0 0 28px;
       overscroll-behavior: contain;
+    }
+    .entry {
+      border-bottom: 1px solid var(--border);
+    }
+    .entry-toggle {
+      display: grid;
+      grid-template-columns: 1fr auto auto;
+      gap: 12px;
+      width: 100%;
+      border: 0;
+      border-bottom: 1px solid transparent;
+      background: transparent;
+      color: inherit;
+      text-align: left;
+      padding: 8px 12px;
+      cursor: pointer;
+    }
+    .entry-toggle:hover {
+      background: var(--button-hover);
+    }
+    .entry-title {
+      color: var(--accent);
+      font-weight: 600;
+      min-width: 0;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .entry-meta {
+      color: var(--muted);
+      white-space: nowrap;
+    }
+    .entry-chevron {
+      color: var(--muted);
+      width: 14px;
+      text-align: center;
+    }
+    .entry-body {
+      display: none;
+      padding: 6px 12px 12px;
+      border-top: 1px solid var(--border);
+    }
+    .entry.open .entry-body {
+      display: block;
     }
     .line {
       white-space: pre-wrap;
       word-break: break-word;
       padding: 1px 0;
-      border-bottom: 1px solid transparent;
-    }
-    .divider {
-      color: var(--border);
     }
     .send {
       color: var(--accent);
@@ -181,6 +221,7 @@ class ClientPanelViewProvider implements vscode.WebviewViewProvider, ClientLogVi
     const vscode = typeof acquireVsCodeApi === "function" ? acquireVsCodeApi() : undefined;
     const state = vscode?.getState?.() ?? {};
     const logRoot = document.getElementById("logRoot");
+    const expandedId = state.expandedId ?? null;
     const copyText = "${copyPayload}";
     const button = document.getElementById("copyAll");
     const shouldStickBottom = state.atBottom !== false;
@@ -193,7 +234,23 @@ class ClientPanelViewProvider implements vscode.WebviewViewProvider, ClientLogVi
     }
     logRoot?.addEventListener("scroll", () => {
       const atBottom = logRoot.scrollTop + logRoot.clientHeight >= logRoot.scrollHeight - 8;
-      vscode?.setState?.({ scrollTop: logRoot.scrollTop, atBottom });
+      const current = vscode?.getState?.() ?? {};
+      vscode?.setState?.({ ...current, scrollTop: logRoot.scrollTop, atBottom });
+    });
+    const applyExpanded = (id) => {
+      document.querySelectorAll(".entry").forEach(node => {
+        node.classList.toggle("open", node.getAttribute("data-entry-id") === id);
+      });
+    };
+    applyExpanded(expandedId);
+    document.querySelectorAll(".entry-toggle").forEach(button => {
+      button.addEventListener("click", () => {
+        const id = button.getAttribute("data-entry-id");
+        const nextId = id === (vscode?.getState?.()?.expandedId ?? null) ? null : id;
+        const current = vscode?.getState?.() ?? {};
+        vscode?.setState?.({ ...current, expandedId: nextId });
+        applyExpanded(nextId);
+      });
     });
     button?.addEventListener("click", async () => {
       try {
@@ -235,6 +292,20 @@ function renderLine(line: string): string {
   return `<div class="line ${classifyLine(line)}">${escapeHtml(line)}</div>`;
 }
 
+function renderEntry(entry: LogEntry, index: number): string {
+  const body = entry.lines.map(line => renderLine(line)).join("");
+  const meta = [entry.duration, entry.status].filter(Boolean).join("  ");
+  const safeId = `entry-${index}`;
+  return `<section class="entry" data-entry-id="${safeId}">
+    <button class="entry-toggle" type="button" data-entry-id="${safeId}">
+      <span class="entry-title">${escapeHtml(entry.title)}</span>
+      <span class="entry-meta">${escapeHtml(meta)}</span>
+      <span class="entry-chevron">+</span>
+    </button>
+    <div class="entry-body">${body || '<div class="line meta">(empty)</div>'}</div>
+  </section>`;
+}
+
 function classifyLine(line: string): string {
   if (/^-{20,}$/.test(line)) return "divider";
   if (line.startsWith("[send]")) return "send";
@@ -267,4 +338,48 @@ function escapeJsString(input: string): string {
     .replaceAll("\n", "\\n")
     .replaceAll("\r", "\\r")
     .replaceAll("</script>", "<\\/script>");
+}
+
+interface LogEntry {
+  title: string;
+  duration?: string;
+  status?: string;
+  lines: string[];
+}
+
+function buildEntries(lines: string[]): LogEntry[] {
+  const entries: LogEntry[] = [];
+  let current: string[] = [];
+
+  const flush = (): void => {
+    const trimmed = current.filter(line => line.trim().length > 0 && !/^-{20,}$/.test(line));
+    if (trimmed.length === 0) {
+      current = [];
+      return;
+    }
+
+    const title = trimmed.find(line => line.startsWith("[send]")) ?? trimmed[0];
+    const duration = trimmed.find(line => line.startsWith("duration:"));
+    const status = [...trimmed].reverse().find(line =>
+      line.startsWith("[done]") || line.startsWith("[error]") || line.startsWith("[stopped]")
+    );
+
+    entries.push({
+      title,
+      duration,
+      status,
+      lines: trimmed.filter(line => line !== title && line !== duration && line !== status)
+    });
+    current = [];
+  };
+
+  for (const line of lines) {
+    if (/^-{20,}$/.test(line)) {
+      flush();
+      continue;
+    }
+    current.push(line);
+  }
+  flush();
+  return entries;
 }
