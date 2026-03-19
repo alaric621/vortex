@@ -25,7 +25,7 @@ describe("package contributions", () => {
           && item.when === "resourceExtname == .vht && !vortex.client.busy"
       )
     ).toBe(true);
-    expect(editorTitle.some(item => item.command === "vortex.request.stop" && item.when.includes("vortex.client.busy"))).toBe(true);
+    expect(editorTitle.some(item => item.command === "vortex.request.stop")).toBe(false);
     expect(
       keybindings.some(
         item => item.command === "vortex.request.send"

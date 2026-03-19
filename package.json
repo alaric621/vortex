@@ -98,11 +98,6 @@
           "command": "vortex.request.send",
           "when": "resourceExtname == .vht && !vortex.client.busy",
           "group": "navigation@1"
-        },
-        {
-          "command": "vortex.request.stop",
-          "when": "resourceExtname == .vht && vortex.client.busy",
-          "group": "navigation@1"
         }
       ]
     },
