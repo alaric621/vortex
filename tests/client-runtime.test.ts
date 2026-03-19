@@ -88,6 +88,41 @@ describe("client runtime", () => {
     }
   );
 
+  it("returns HTTP execution details to the caller", async () => {
+    const seen: Array<{ authorization?: string; body: string }> = [];
+    const server = http.createServer((req, res) => {
+      const chunks: Buffer[] = [];
+      req.on("data", chunk => chunks.push(Buffer.from(chunk)));
+      req.on("end", () => {
+        seen.push({
+          authorization: req.headers.authorization,
+          body: Buffer.concat(chunks).toString("utf8")
+        });
+        res.writeHead(201, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ ok: true }));
+      });
+    });
+    servers.push(server);
+    const port = await listen(server);
+    const client = await import("../src/core/client");
+
+    const result = await client.send({
+      id: "req_hooked",
+      type: "POST",
+      name: "hooked",
+      url: `http://127.0.0.1:${port}/hooked`,
+      headers: {},
+      body: "{\"before\":true}"
+    });
+
+    expect(seen[0]).toEqual({
+      authorization: undefined,
+      body: "{\"before\":true}"
+    });
+    expect(result.status).toBe(201);
+    expect(result.body).toBe("{\"ok\":true}");
+  });
+
   it("supports CONNECT requests", async () => {
     const server = http.createServer();
     server.on("connect", (_req, socket) => {
@@ -174,7 +209,7 @@ describe("client runtime", () => {
       }
     }
 
-    (globalThis as { WebSocket?: typeof FakeWebSocket }).WebSocket = FakeWebSocket as never;
+    (globalThis as unknown as { WebSocket?: typeof FakeWebSocket }).WebSocket = FakeWebSocket;
     const client = await import("../src/core/client");
     const sendPromise = client.send({
       id: "req_ws",
@@ -217,11 +252,52 @@ describe("client runtime", () => {
 
     await new Promise(resolve => setTimeout(resolve, 40));
     await expect(client.send({
+      id: "req_busy",
+      type: "GET",
+      name: "busy-again",
+      url: `http://127.0.0.1:${port}/other`
+    })).rejects.toThrow("Request is already running: req_busy");
+
+    await client.stop("req_busy");
+    await first;
+  });
+
+  it("allows different request ids to run concurrently", async () => {
+    const server = http.createServer((req, res) => {
+      if (req.url === "/events") {
+        res.writeHead(200, {
+          "Content-Type": "text/event-stream",
+          "Cache-Control": "no-cache",
+          Connection: "keep-alive"
+        });
+        res.write("data: hello\n\n");
+        return;
+      }
+
+      res.writeHead(200, { "Content-Type": "text/plain" });
+      res.end("ok");
+    });
+    servers.push(server);
+    const port = await listen(server);
+    const client = await import("../src/core/client");
+
+    const first = client.send({
+      id: "req_busy",
+      type: "SSE",
+      name: "busy",
+      url: `http://127.0.0.1:${port}/events`
+    });
+
+    await new Promise(resolve => setTimeout(resolve, 40));
+    const second = await client.send({
       id: "req_second",
       type: "GET",
       name: "second",
       url: `http://127.0.0.1:${port}/other`
-    })).rejects.toThrow("Another request is already running");
+    });
+
+    expect(second.status).toBe(200);
+    expect(second.body).toBe("ok");
 
     await client.stop("req_busy");
     await first;

@@ -2,81 +2,198 @@ import type { Collections  } from "../../../typings/filesystem";
 import { normalizePath } from "./path-utils";
 
 export const collections: Collections[] = [
-     {
-                  "id": "req_mmtjmybx_fnqqjz",
-                  "type": "GET",
-                  "name": "hello",
-                  "folder": "/fsa",
-                  "url": "http://baidu.com",
-                  "ctime": 1710000000000,
-                  "mtime": 1710003600000,
-                  "headers": {},
-                  "body": "",
-                  "scripts": {
-                        "pre": "",
-                        "post": ""
-                  }
-            },
-            {
-                  "id": "req_root_status",
-                  "type": "GET",
-                  "name": "status",
-                  "folder": "/",
-                  "url": "http://localhost:9501/status",
-                  "ctime": 1710100000000,
-                  "mtime": 1710107200000,
-                  "headers": {},
-                  "body": "",
-                  "scripts": {
-                        "pre": "",
-                        "post": ""
-                  }
-            },
-            {
-                  "id": "req_fsa_list",
-                  "type": "GET",
-                  "name": "list",
-                  "folder": "/fsa",
-                  "url": "http://localhost:9501/fsa/list",
-                  "ctime": 1710200000000,
-                  "mtime": 1710201800000,
-                  "headers": {},
-                  "body": "",
-                  "scripts": {
-                        "pre": "",
-                        "post": ""
-                  }
-            },
-            {
-                  "id": "req_team_users",
-                  "type": "GET",
-                  "name": "users",
-                  "folder": "/team",
-                  "url": "http://localhost:9501/team/users",
-                  "ctime": 1710300000000,
-                  "mtime": 1710305400000,
-                  "headers": {},
-                  "body": "",
-                  "scripts": {
-                        "pre": "",
-                        "post": ""
-                  }
-            },
-            {
-                  "id": "req_backend_jobs",
-                  "type": "GET",
-                  "name": "jobs",
-                  "folder": "/team/backend",
-                  "url": "http://localhost:9501/team/backend/jobs",
-                  "ctime": 1710400000000,
-                  "mtime": 1710409000000,
-                  "headers": {},
-                  "body": "",
-                  "scripts": {
-                        "pre": "",
-                        "post": ""
-                  }
-            }
+  {
+    id: "req_get_health",
+    type: "GET",
+    name: "health-check",
+    folder: "/http/core",
+    url: "https://httpbingo.org/get?source=vortex",
+    ctime: 1711000000000,
+    mtime: 1711000000000,
+    headers: {
+      Accept: "application/json"
+    },
+    body: "",
+    scripts: {
+      pre: "console.log(`Preparing ${request.type} ${request.url}`);",
+      post: "console.log(`Finished with status ${response.status}`);"
+    }
+  },
+  {
+    id: "req_post_create_user",
+    type: "POST",
+    name: "create-user",
+    folder: "/http/core",
+    url: "https://httpbingo.org/post",
+    ctime: 1711000100000,
+    mtime: 1711000100000,
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: "{\n  \"name\": \"{{name}}\"\n}",
+    scripts: { pre: "", post: "console.log(response.body);" }
+  },
+  {
+    id: "req_put_replace_user",
+    type: "PUT",
+    name: "replace-user",
+    folder: "/http/core",
+    url: "https://httpbingo.org/put",
+    ctime: 1711000200000,
+    mtime: 1711000200000,
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: "{\n  \"name\": \"updated-user\"\n}",
+    scripts: { pre: "", post: "" }
+  },
+  {
+    id: "req_delete_user",
+    type: "DELETE",
+    name: "delete-user",
+    folder: "/http/core",
+    url: "https://httpbingo.org/delete",
+    ctime: 1711000300000,
+    mtime: 1711000300000,
+    headers: {},
+    body: "",
+    scripts: { pre: "", post: "" }
+  },
+  {
+    id: "req_patch_user_status",
+    type: "PATCH",
+    name: "patch-user-status",
+    folder: "/http/advanced",
+    url: "https://httpbingo.org/patch",
+    ctime: 1711000400000,
+    mtime: 1711000400000,
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: "{\n  \"enabled\": true\n}",
+    scripts: { pre: "", post: "" }
+  },
+  {
+    id: "req_head_status",
+    type: "HEAD",
+    name: "head-status",
+    folder: "/http/advanced",
+    url: "https://httpbingo.org/head",
+    ctime: 1711000500000,
+    mtime: 1711000500000,
+    headers: {},
+    body: "",
+    scripts: { pre: "", post: "" }
+  },
+  {
+    id: "req_options_api",
+    type: "OPTIONS",
+    name: "options-api",
+    folder: "/http/advanced",
+    url: "https://httpbingo.org/anything/options-api",
+    ctime: 1711000600000,
+    mtime: 1711000600000,
+    headers: {
+      Origin: "http://localhost:3000"
+    },
+    body: "",
+    scripts: { pre: "", post: "" }
+  },
+  {
+    id: "req_connect_tunnel",
+    type: "CONNECT",
+    name: "connect-tunnel",
+    folder: "/http/advanced",
+    url: "http://httpbingo.org/anything/connect-tunnel",
+    ctime: 1711000700000,
+    mtime: 1711000700000,
+    headers: {},
+    body: "",
+    scripts: { pre: "", post: "" }
+  },
+  {
+    id: "req_trace_echo",
+    type: "TRACE",
+    name: "trace-echo",
+    folder: "/http/advanced",
+    url: "https://httpbingo.org/anything/trace-echo",
+    ctime: 1711000800000,
+    mtime: 1711000800000,
+    headers: {
+      "Max-Forwards": "5"
+    },
+    body: "",
+    scripts: { pre: "", post: "" }
+  },
+  {
+    id: "req_websocket_feed",
+    type: "WEBSOCKET",
+    name: "websocket-feed",
+    folder: "/streaming/realtime",
+    url: "wss://httpbingo.org/websocket/echo",
+    ctime: 1711000900000,
+    mtime: 1711000900000,
+    headers: {},
+    body: "{\"action\":\"subscribe\",\"channel\":\"prices\"}",
+    scripts: {
+      pre: "console.log('Opening WebSocket echo stream');",
+      post: "console.log(`Received ${response.events.length} websocket messages`);"
+    }
+  },
+  {
+    id: "req_sse_events",
+    type: "SSE",
+    name: "sse-events",
+    folder: "/streaming/realtime",
+    url: "https://httpbingo.org/sse?count=5&duration=20s&delay=1s",
+    ctime: 1711001000000,
+    mtime: 1711001000000,
+    headers: {
+      Accept: "text/event-stream"
+    },
+    body: "",
+    scripts: { pre: "", post: "console.log(`Captured ${response.events.length} SSE events`);" }
+  },
+  {
+    id: "req_eventsource_notifications",
+    type: "EVENTSOURCE",
+    name: "eventsource-notifications",
+    folder: "/streaming/realtime",
+    url: "https://stream.wikimedia.org/v2/stream/recentchange",
+    ctime: 1711001100000,
+    mtime: 1711001100000,
+    headers: {
+      Accept: "text/event-stream"
+    },
+    body: "",
+    scripts: { pre: "", post: "console.log(`Recentchange events: ${response.events.length}`);" }
+  },
+  {
+    id: "req_subscribe_topic",
+    type: "SUBSCRIBE",
+    name: "subscribe-topic",
+    folder: "/streaming/pubsub",
+    url: "https://httpbingo.org/anything/topics/orders",
+    ctime: 1711001200000,
+    mtime: 1711001200000,
+    headers: {
+      Prefer: "wait=30"
+    },
+    body: "",
+    scripts: { pre: "", post: "" }
+  },
+  {
+    id: "req_unsubscribe_topic",
+    type: "UNSUBSCRIBE",
+    name: "unsubscribe-topic",
+    folder: "/streaming/pubsub",
+    url: "https://httpbingo.org/anything/topics/orders",
+    ctime: 1711001300000,
+    mtime: 1711001300000,
+    headers: {},
+    body: "",
+    scripts: { pre: "", post: "" }
+  }
 ];
 
 // 保存显式创建的空目录路径

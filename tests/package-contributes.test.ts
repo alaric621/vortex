@@ -7,11 +7,11 @@ describe("package contributions", () => {
     const editorTitle = packageJson.contributes.menus["editor/title"];
     const keybindings = packageJson.contributes.keybindings;
 
-    expect(viewContext.some(item => item.command === "vortex.request.send" && item.when.includes("!vortex.client.busy"))).toBe(true);
+    expect(viewContext.some(item => item.command === "vortex.request.send" && item.when === "view == vortex-explorer && viewItem == vortex.requestNode")).toBe(true);
     expect(viewContext.some(item => item.command === "vortex.request.stop" && item.when.includes("vortex.client.busy"))).toBe(true);
-    expect(editorTitle.some(item => item.command === "vortex.request.send" && item.when.includes("!vortex.client.busy"))).toBe(true);
+    expect(editorTitle.some(item => item.command === "vortex.request.send" && item.when === "resourceExtname == .vht")).toBe(true);
     expect(editorTitle.some(item => item.command === "vortex.request.stop" && item.when.includes("vortex.client.busy"))).toBe(true);
-    expect(keybindings.some(item => item.command === "vortex.request.send" && item.when.includes("!vortex.client.busy"))).toBe(true);
+    expect(keybindings.some(item => item.command === "vortex.request.send" && !item.when.includes("vortex.client.busy"))).toBe(true);
     expect(keybindings.some(item => item.command === "vortex.request.stop" && item.when.includes("vortex.client.busy"))).toBe(true);
   });
 });

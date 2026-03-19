@@ -1,5 +1,6 @@
 import * as vscode from "vscode";
-import { getActiveRequestId, isClientBusy, send, stop } from "../core/client";
+import { ClientRunResult, getActiveRequestId, isRequestRunning, send, stop } from "../core/client";
+import { resolveHookRequest, runHook } from "../core/runHook";
 import { collections, createItem, getFileContent, getPathType } from "../core/filesystem/context";
 import { basenamePath, dirnamePath, ensureRequestPathWithoutExtension, joinPath, normalizePath } from "../core/filesystem/path-utils";
 
@@ -10,6 +11,15 @@ interface Refreshable {
 interface WritableFileSystemProvider {
   delete(uri: vscode.Uri, options: { recursive: boolean }): void;
   rename(oldUri: vscode.Uri, newUri: vscode.Uri): void;
+}
+
+let hookOutputChannel: vscode.OutputChannel | undefined;
+
+function getHookOutputChannel(): vscode.OutputChannel {
+  if (!hookOutputChannel) {
+    hookOutputChannel = vscode.window.createOutputChannel("Vortex Hooks");
+  }
+  return hookOutputChannel;
 }
 
 function isRequestUri(uri: vscode.Uri | undefined): uri is vscode.Uri {
@@ -169,11 +179,6 @@ async function sendRequestCommand(target?: vscode.TreeItem): Promise<void> {
     return;
   }
 
-  if (isClientBusy()) {
-    vscode.window.showWarningMessage("A request is already running. Stop it before sending another one.");
-    return;
-  }
-
   if (!await saveRequestIfDirty(resourceUri)) {
     vscode.window.showWarningMessage("Failed to save the current request before sending.");
     return;
@@ -186,14 +191,48 @@ async function sendRequestCommand(target?: vscode.TreeItem): Promise<void> {
     return;
   }
 
+  if (isRequestRunning(request.id)) {
+    vscode.window.showWarningMessage(`Request is already running: ${request.id}`);
+    return;
+  }
+
+  const resolvedRequest = resolveHookRequest({
+    ...request,
+    id: request.id,
+    documentUri: resourceUri
+  });
+  const output = getHookOutputChannel();
+  const response: ClientRunResult = {
+    events: []
+  };
+  const hookContext = {
+    request: resolvedRequest,
+    response,
+    variables: {
+      request: resolvedRequest,
+      response
+    },
+    log: (message: string) => {
+      output.appendLine(message);
+      output.show(true);
+    }
+  };
+
   try {
-    await send({
-      ...request,
-      id: request.id,
-      documentUri: resourceUri
-    });
+    await runHook(resolvedRequest.scripts?.pre, hookContext);
+    const result = await send(resolvedRequest);
+    Object.assign(response, result);
+    await runHook(resolvedRequest.scripts?.post, hookContext);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
+    response.error = message;
+    try {
+      await runHook(resolvedRequest.scripts?.post, hookContext);
+    } catch (hookError) {
+      const hookMessage = hookError instanceof Error ? hookError.message : String(hookError);
+      output.appendLine(`[hook-error] ${hookMessage}`);
+      output.show(true);
+    }
     vscode.window.showWarningMessage(message);
   }
 }

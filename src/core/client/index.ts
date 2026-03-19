@@ -1,7 +1,6 @@
 import * as http from "node:http";
 import * as https from "node:https";
 import * as vscode from "vscode";
-import { getVhtVariables } from "../../env";
 import { Collections } from "../../../typings/filesystem";
 
 export interface ClientRequestPayload extends Partial<Collections> {
@@ -11,7 +10,7 @@ export interface ClientRequestPayload extends Partial<Collections> {
 
 export interface ClientState {
   busy: boolean;
-  activeRequestId?: string;
+  activeRequestIds: string[];
 }
 
 type ClientListener = (state: ClientState) => void;
@@ -19,6 +18,16 @@ type ClientListener = (state: ClientState) => void;
 interface RequestExecution {
   completed: Promise<void>;
   stop: () => void;
+}
+
+export interface ClientRunResult {
+  status?: number;
+  statusText?: string;
+  headers?: Record<string, unknown>;
+  body?: string;
+  events: string[];
+  error?: string;
+  meta?: Record<string, unknown>;
 }
 
 interface RuntimeWebSocket {
@@ -60,7 +69,7 @@ const HTTP_METHODS = new Set<HttpLikeMethod>([
 ]);
 
 let outputChannel: vscode.OutputChannel | undefined;
-let activeExecution: { id: string; stop: () => void } | undefined;
+const activeExecutions = new Map<string, { stop: () => void }>();
 const listeners = new Set<ClientListener>();
 
 function getOutputChannel(): vscode.OutputChannel {
@@ -72,8 +81,8 @@ function getOutputChannel(): vscode.OutputChannel {
 
 function getClientState(): ClientState {
   return {
-    busy: Boolean(activeExecution),
-    activeRequestId: activeExecution?.id
+    busy: activeExecutions.size > 0,
+    activeRequestIds: Array.from(activeExecutions.keys())
   };
 }
 
@@ -85,15 +94,15 @@ function emitState(): void {
 }
 
 function beginExecution(id: string, stop: () => void): void {
-  activeExecution = { id, stop };
+  activeExecutions.set(id, { stop });
   emitState();
 }
 
 function endExecution(id: string): void {
-  if (activeExecution?.id !== id) {
+  if (!activeExecutions.has(id)) {
     return;
   }
-  activeExecution = undefined;
+  activeExecutions.delete(id);
   emitState();
 }
 
@@ -114,50 +123,10 @@ function normalizeMethod(type?: string): ClientMethod {
   return "GET";
 }
 
-function evaluateExpression(expression: string, variables: Record<string, unknown>): unknown {
-  if (!expression.trim()) {
-    return "";
-  }
-
-  try {
-    const fn = new Function(
-      "vars",
-      `with (vars) { return (${expression}); }`
-    ) as (vars: Record<string, unknown>) => unknown;
-    return fn(variables);
-  } catch {
-    return undefined;
-  }
-}
-
-function resolveTemplate(input: string | undefined, variables: Record<string, unknown>): string {
-  if (!input) {
-    return "";
-  }
-
-  return input.replace(/\{\{([\s\S]*?)\}\}/g, (_match, expression: string) => {
-    const value = evaluateExpression(expression.trim(), variables);
-    return value === undefined ? "" : String(value);
-  });
-}
-
 function resolvePayload(param: ClientRequestPayload): ClientRequestPayload {
-  const variables = getVhtVariables(param.documentUri);
-  const headers: Record<string, string> = {};
-  for (const [key, value] of Object.entries(param.headers ?? {})) {
-    headers[resolveTemplate(key, variables)] = resolveTemplate(value, variables);
-  }
-
   return {
     ...param,
     type: normalizeMethod(param.type),
-    url: resolveTemplate(param.url, variables),
-    headers,
-    body: resolveTemplate(param.body, variables),
-    scripts: {
-      pre: resolveTemplate(param.scripts?.pre ?? "", variables),
-      post: resolveTemplate(param.scripts?.post ?? "", variables)
-    }
   };
 }
 
@@ -200,7 +169,7 @@ function ensureUrl(input: string | undefined): URL {
   return new URL(input);
 }
 
-function sendHttpRequest(param: ClientRequestPayload, channel: vscode.OutputChannel): RequestExecution {
+function sendHttpRequest(param: ClientRequestPayload, channel: vscode.OutputChannel, runtimeResponse: ClientRunResult): RequestExecution {
   const url = ensureUrl(param.url);
   const client = url.protocol === "https:" ? https : http;
   const body = param.body ?? "";
@@ -217,9 +186,13 @@ function sendHttpRequest(param: ClientRequestPayload, channel: vscode.OutputChan
         chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
       });
       response.on("end", () => {
+        runtimeResponse.status = response.statusCode ?? 0;
+        runtimeResponse.statusText = response.statusMessage ?? "";
+        runtimeResponse.headers = response.headers as Record<string, unknown>;
         channel.appendLine(`status: ${response.statusCode ?? 0} ${response.statusMessage ?? ""}`.trim());
         channel.appendLine(`response headers: ${JSON.stringify(response.headers, null, 2)}`);
         const responseText = Buffer.concat(chunks).toString("utf8");
+        runtimeResponse.body = responseText;
         if (responseText) {
           channel.appendLine("response body:");
           channel.appendLine(responseText);
@@ -229,6 +202,9 @@ function sendHttpRequest(param: ClientRequestPayload, channel: vscode.OutputChan
     });
 
     request.once("connect", (response, socket, head) => {
+      runtimeResponse.status = response.statusCode ?? 0;
+      runtimeResponse.statusText = response.statusMessage ?? "";
+      runtimeResponse.meta = { headBytes: head.length };
       channel.appendLine(`connect: ${response.statusCode ?? 0} ${response.statusMessage ?? ""}`.trim());
       if (head.length > 0) {
         channel.appendLine(`connect head bytes: ${head.length}`);
@@ -251,20 +227,36 @@ function sendHttpRequest(param: ClientRequestPayload, channel: vscode.OutputChan
   };
 }
 
-async function consumeSseStream(response: Response, channel: vscode.OutputChannel): Promise<void> {
+function headersToRecord(headers: Headers): Record<string, string> {
+  const output: Record<string, string> = {};
+  headers.forEach((value, key) => {
+    output[key] = value;
+  });
+  return output;
+}
+
+async function consumeSseStream(response: Response, channel: vscode.OutputChannel, runtimeResponse: ClientRunResult): Promise<void> {
   if (!response.body) {
     return;
   }
 
   const decoder = new TextDecoder();
+  const reader = response.body.getReader();
   let pending = "";
-  for await (const chunk of response.body as AsyncIterable<Uint8Array>) {
-    pending += decoder.decode(chunk, { stream: true });
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) {
+      break;
+    }
+
+    pending += decoder.decode(value, { stream: true });
     let boundaryIndex = pending.indexOf("\n\n");
     while (boundaryIndex !== -1) {
       const block = pending.slice(0, boundaryIndex).trim();
       pending = pending.slice(boundaryIndex + 2);
       if (block) {
+        runtimeResponse.events.push(block);
         channel.appendLine(`event: ${block}`);
       }
       boundaryIndex = pending.indexOf("\n\n");
@@ -273,11 +265,12 @@ async function consumeSseStream(response: Response, channel: vscode.OutputChanne
 
   const tail = pending.trim();
   if (tail) {
+    runtimeResponse.events.push(tail);
     channel.appendLine(`event: ${tail}`);
   }
 }
 
-function sendSseRequest(param: ClientRequestPayload, channel: vscode.OutputChannel): RequestExecution {
+function sendSseRequest(param: ClientRequestPayload, channel: vscode.OutputChannel, runtimeResponse: ClientRunResult): RequestExecution {
   const controller = new AbortController();
   const url = ensureUrl(param.url);
   const headers = {
@@ -292,9 +285,12 @@ function sendSseRequest(param: ClientRequestPayload, channel: vscode.OutputChann
       signal: controller.signal
     });
 
+    runtimeResponse.status = response.status;
+    runtimeResponse.statusText = response.statusText;
+    runtimeResponse.headers = headersToRecord(response.headers);
     channel.appendLine(`status: ${response.status} ${response.statusText}`.trim());
-    channel.appendLine(`response headers: ${JSON.stringify(Object.fromEntries(response.headers.entries()), null, 2)}`);
-    await consumeSseStream(response, channel);
+    channel.appendLine(`response headers: ${JSON.stringify(headersToRecord(response.headers), null, 2)}`);
+    await consumeSseStream(response, channel, runtimeResponse);
   })();
 
   return {
@@ -313,7 +309,7 @@ function normalizeWebSocketUrl(input: string | undefined): string {
   return url.toString();
 }
 
-function sendWebSocketRequest(param: ClientRequestPayload, channel: vscode.OutputChannel): RequestExecution {
+function sendWebSocketRequest(param: ClientRequestPayload, channel: vscode.OutputChannel, runtimeResponse: ClientRunResult): RequestExecution {
   const WebSocketCtor = (globalThis as { WebSocket?: new (url: string) => RuntimeWebSocket }).WebSocket;
   if (!WebSocketCtor) {
     throw new Error("Global WebSocket is not available in this runtime.");
@@ -331,6 +327,11 @@ function sendWebSocketRequest(param: ClientRequestPayload, channel: vscode.Outpu
     };
 
     socket.addEventListener("open", () => {
+      runtimeResponse.meta = {
+        ...(runtimeResponse.meta ?? {}),
+        protocol: "websocket",
+        url: normalizeWebSocketUrl(param.url)
+      };
       channel.appendLine("websocket: open");
       if (param.body) {
         socket.send(param.body);
@@ -338,7 +339,9 @@ function sendWebSocketRequest(param: ClientRequestPayload, channel: vscode.Outpu
       }
     });
     socket.addEventListener("message", event => {
-      channel.appendLine(`websocket message: ${String(event.data)}`);
+      const message = String(event.data);
+      runtimeResponse.events.push(message);
+      channel.appendLine(`websocket message: ${message}`);
     });
     socket.addEventListener("error", () => {
       finish(() => reject(new Error("WebSocket connection failed.")));
@@ -360,15 +363,15 @@ function sendWebSocketRequest(param: ClientRequestPayload, channel: vscode.Outpu
   };
 }
 
-function createExecution(param: ClientRequestPayload, channel: vscode.OutputChannel): RequestExecution {
+function createExecution(param: ClientRequestPayload, channel: vscode.OutputChannel, runtimeResponse: ClientRunResult): RequestExecution {
   const method = normalizeMethod(param.type);
   if (method === "WEBSOCKET") {
-    return sendWebSocketRequest(param, channel);
+    return sendWebSocketRequest(param, channel, runtimeResponse);
   }
   if (method === "SSE" || method === "EVENTSOURCE") {
-    return sendSseRequest(param, channel);
+    return sendSseRequest(param, channel, runtimeResponse);
   }
-  return sendHttpRequest(param, channel);
+  return sendHttpRequest(param, channel, runtimeResponse);
 }
 
 export function onDidChangeClientState(listener: ClientListener): vscode.Disposable {
@@ -383,36 +386,46 @@ export function isClientBusy(): boolean {
   return getClientState().busy;
 }
 
-export function getActiveRequestId(): string | undefined {
-  return getClientState().activeRequestId;
+export function isRequestRunning(id: string): boolean {
+  return activeExecutions.has(id);
 }
 
-export async function send(param: ClientRequestPayload): Promise<void> {
-  if (activeExecution) {
-    throw new Error(`Another request is already running: ${activeExecution.id}`);
+export function getActiveRequestId(): string | undefined {
+  return getClientState().activeRequestIds[0];
+}
+
+export async function send(param: ClientRequestPayload): Promise<ClientRunResult> {
+  if (activeExecutions.has(param.id)) {
+    throw new Error(`Request is already running: ${param.id}`);
   }
 
   const channel = getOutputChannel();
   const resolved = resolvePayload(param);
-  appendRequestIntro(channel, resolved);
-  appendRequestHeaders(channel, resolved.headers);
-  appendRequestBody(channel, resolved.body);
+  const runtimeResponse: ClientRunResult = {
+    events: []
+  };
   channel.show(true);
 
-  const execution = createExecution(resolved, channel);
+  const execution = createExecution(resolved, channel, runtimeResponse);
   beginExecution(param.id, execution.stop);
 
   try {
+    appendRequestIntro(channel, resolved);
+    appendRequestHeaders(channel, resolved.headers);
+    appendRequestBody(channel, resolved.body);
     await execution.completed;
     channel.appendLine(`[done] ${buildRequestLabel(resolved)}`);
+    return runtimeResponse;
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
+    runtimeResponse.error = message;
     if (message !== "The operation was aborted" && message !== "Stopped by user.") {
       channel.appendLine(`[error] ${buildRequestLabel(resolved)}: ${message}`);
       void vscode.window.showErrorMessage(`Request failed: ${message}`);
     } else {
       channel.appendLine(`[stopped] ${buildRequestLabel(resolved)}`);
     }
+    return runtimeResponse;
   } finally {
     endExecution(param.id);
     appendDivider(channel);
@@ -420,11 +433,12 @@ export async function send(param: ClientRequestPayload): Promise<void> {
 }
 
 export async function stop(id: string): Promise<void> {
-  if (!activeExecution || activeExecution.id !== id) {
+  const execution = activeExecutions.get(id);
+  if (!execution) {
     return;
   }
 
-  activeExecution.stop();
+  execution.stop();
 }
 
 export default send;

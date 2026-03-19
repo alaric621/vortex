@@ -84,7 +84,7 @@
         },
         {
           "command": "vortex.request.send",
-          "when": "view == vortex-explorer && viewItem == vortex.requestNode && !vortex.client.busy",
+          "when": "view == vortex-explorer && viewItem == vortex.requestNode",
           "group": "inline@1"
         },
         {
@@ -96,7 +96,7 @@
       "editor/title": [
         {
           "command": "vortex.request.send",
-          "when": "resourceExtname == .vht && !vortex.client.busy",
+          "when": "resourceExtname == .vht",
           "group": "navigation@1"
         },
         {
@@ -170,7 +170,7 @@
         "command": "vortex.request.send",
         "key": "enter",
         "mac": "enter",
-        "when": "focusedView == vortex-explorer && listFocus && !inputFocus && viewItem == vortex.requestNode && !vortex.client.busy"
+        "when": "focusedView == vortex-explorer && listFocus && !inputFocus && viewItem == vortex.requestNode"
       },
       {
         "command": "vortex.request.refresh",
@@ -182,7 +182,7 @@
         "command": "vortex.request.send",
         "key": "ctrl+enter",
         "mac": "cmd+enter",
-        "when": "editorTextFocus && resourceExtname == .vht && vim.mode == 'Normal' && !vortex.client.busy"
+        "when": "editorTextFocus && resourceExtname == .vht && vim.mode == 'Normal'"
       },
       {
         "command": "vortex.request.stop",
@@ -196,6 +196,7 @@
     "compile": "tsc",
     "watch": "tsc -watch",
     "clean": "tsc -b --clean",
+    "typecheck:tests": "tsc -p tsconfig.tests.json",
     "test": "vitest",
     "test:run": "vitest --run",
     "test:coverage": "vitest --run --coverage --coverage.provider=v8 --coverage.reporter=text --coverage.reporter=json-summary --coverage.thresholds.lines=65 --coverage.thresholds.functions=60 --coverage.thresholds.statements=65 --coverage.thresholds.branches=50"

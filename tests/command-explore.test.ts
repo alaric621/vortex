@@ -4,7 +4,11 @@ const vscodeMocks = vi.hoisted(() => ({
   registerCommandMock: vi.fn(),
   executeCommandMock: vi.fn(),
   showInputBoxMock: vi.fn(),
-  showWarningMessageMock: vi.fn()
+  showWarningMessageMock: vi.fn(),
+  createOutputChannelMock: vi.fn(() => ({
+    appendLine: vi.fn(),
+    show: vi.fn()
+  }))
 }));
 
 vi.mock("vscode", () => {
@@ -41,6 +45,7 @@ vi.mock("vscode", () => {
     window: {
       showInputBox: vscodeMocks.showInputBoxMock,
       showWarningMessage: vscodeMocks.showWarningMessageMock,
+      createOutputChannel: vscodeMocks.createOutputChannelMock,
       activeTextEditor: undefined
     }
   };
@@ -49,15 +54,24 @@ vi.mock("vscode", () => {
 const clientMocks = vi.hoisted(() => ({
   sendMock: vi.fn(),
   stopMock: vi.fn(),
-  isClientBusyMock: vi.fn(() => false),
-  getActiveRequestIdMock: vi.fn(() => undefined)
+  isRequestRunningMock: vi.fn(() => false),
+  getActiveRequestIdMock: vi.fn<() => string | undefined>(() => undefined)
+}));
+const hookMocks = vi.hoisted(() => ({
+  resolveHookRequestMock: vi.fn((request: unknown) => request),
+  runHookMock: vi.fn(() => Promise.resolve())
 }));
 
 vi.mock("../src/core/client", () => ({
   send: clientMocks.sendMock,
   stop: clientMocks.stopMock,
-  isClientBusy: clientMocks.isClientBusyMock,
+  isRequestRunning: clientMocks.isRequestRunningMock,
   getActiveRequestId: clientMocks.getActiveRequestIdMock
+}));
+
+vi.mock("../src/core/runHook", () => ({
+  resolveHookRequest: hookMocks.resolveHookRequestMock,
+  runHook: hookMocks.runHookMock
 }));
 
 import * as vscode from "vscode";
@@ -105,12 +119,17 @@ describe("registerExploreCommands", () => {
     vscodeMocks.executeCommandMock.mockReset();
     vscodeMocks.showInputBoxMock.mockReset();
     vscodeMocks.showWarningMessageMock.mockReset();
+    vscodeMocks.createOutputChannelMock.mockClear();
     clientMocks.sendMock.mockReset();
     clientMocks.stopMock.mockReset();
-    clientMocks.isClientBusyMock.mockReset();
-    clientMocks.isClientBusyMock.mockReturnValue(false);
+    clientMocks.isRequestRunningMock.mockReset();
+    clientMocks.isRequestRunningMock.mockReturnValue(false);
     clientMocks.getActiveRequestIdMock.mockReset();
     clientMocks.getActiveRequestIdMock.mockReturnValue(undefined);
+    hookMocks.resolveHookRequestMock.mockReset();
+    hookMocks.resolveHookRequestMock.mockImplementation((request: unknown) => request);
+    hookMocks.runHookMock.mockReset();
+    hookMocks.runHookMock.mockResolvedValue(undefined);
     fsProvider.rename.mockReset();
     fsProvider.delete.mockReset();
     explorerProvider.refresh.mockReset();
@@ -215,20 +234,40 @@ describe("registerExploreCommands", () => {
         save: vi.fn().mockResolvedValue(true)
       }
     };
+    clientMocks.sendMock.mockResolvedValue({
+      status: 200,
+      events: []
+    });
     const sendCommand = getHandler("vortex.request.send");
 
     await sendCommand({
       resourceUri: vscode.Uri.from({ scheme: "vortex-fs", authority: "request", path: "/team/users.vht" })
     });
 
+    expect(hookMocks.resolveHookRequestMock).toHaveBeenCalled();
+    expect(hookMocks.runHookMock).toHaveBeenNthCalledWith(
+      1,
+      "",
+      expect.objectContaining({
+        request: expect.objectContaining({ id: "req_team_users" }),
+        response: expect.objectContaining({ events: [] })
+      })
+    );
     expect(clientMocks.sendMock).toHaveBeenCalledWith(expect.objectContaining({
       id: "req_team_users",
       name: "users"
     }));
+    expect(hookMocks.runHookMock).toHaveBeenNthCalledWith(
+      2,
+      "",
+      expect.objectContaining({
+        response: expect.objectContaining({ status: 200 })
+      })
+    );
   });
 
-  it("blocks send when another request is already running", async () => {
-    clientMocks.isClientBusyMock.mockReturnValue(true);
+  it("blocks send when the same request id is already running", async () => {
+    clientMocks.isRequestRunningMock.mockReturnValue(true);
     const sendCommand = getHandler("vortex.request.send");
 
     await sendCommand({
@@ -237,7 +276,7 @@ describe("registerExploreCommands", () => {
 
     expect(clientMocks.sendMock).not.toHaveBeenCalled();
     expect(vscodeMocks.showWarningMessageMock).toHaveBeenCalledWith(
-      "A request is already running. Stop it before sending another one."
+      "Request is already running: req_team_users"
     );
   });
 
@@ -252,7 +291,7 @@ describe("registerExploreCommands", () => {
   });
 
   it("stops the active request when no resource is selected", async () => {
-    clientMocks.getActiveRequestIdMock.mockReturnValue("req_team_users");
+    clientMocks.getActiveRequestIdMock.mockImplementation(() => "req_team_users");
     const stopCommand = getHandler("vortex.request.stop");
 
     await stopCommand();
