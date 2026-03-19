@@ -29,10 +29,17 @@ export interface VhtSections {
     };
 }
 
+export interface VhtVariableNode {
+    expression: string;
+    raw: string;
+    range: Range;
+}
+
 export interface VhtAST {
     nodes: ASTNode[];
     errors: { range: Range; message: string }[];
     sections: VhtSections;
+    variables: VhtVariableNode[];
 }
 
 /**

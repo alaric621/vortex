@@ -5,17 +5,21 @@ export class VhtParser {
     private readonly REGEX_REQUEST = /^(GET|POST|PUT|DELETE|PATCH|HEAD|OPTIONS|CONNECT|TRACE|WEBSOCKET|SSE|EVENTSOURCE|SUBSCRIBE|UNSUBSCRIBE)\s+(.+)$/;
     // 简单的 Header 正则
     private readonly REGEX_HEADER = /^([\w-]+)\s*:\s*(.*)$/;
+    private readonly REGEX_VARIABLE = /\{\{([\s\S]*?)\}\}/g;
 
     public parse(text: string): VhtAST {
-        const lines = text.replace(/\r\n/g, '\n').split('\n');
+        const normalizedText = text.replace(/\r\n/g, '\n');
+        const lines = normalizedText.split('\n');
         const ast: VhtAST = {
             nodes: [],
             errors: [],
             sections: {
                 headers: [],
                 scripts: {}
-            }
+            },
+            variables: []
         };
+        this.collectVariables(normalizedText, ast);
         let i = 0;
 
         while (i < lines.length) {
@@ -167,6 +171,56 @@ export class VhtParser {
             start: { line: sL, character: sC }, 
             end: { line: eL, character: eC } 
         };
+    }
+
+    private collectVariables(text: string, ast: VhtAST): void {
+        const lineStarts = this.buildLineStartOffsets(text);
+
+        for (const match of text.matchAll(this.REGEX_VARIABLE)) {
+            const raw = match[0];
+            const expression = (match[1] ?? '').trim();
+            const offset = match.index;
+            if (offset === undefined) continue;
+
+            const start = this.offsetToPosition(offset, lineStarts);
+            const end = this.offsetToPosition(offset + raw.length, lineStarts);
+            ast.variables.push({
+                expression,
+                raw,
+                range: { start, end }
+            });
+        }
+    }
+
+    private buildLineStartOffsets(text: string): number[] {
+        const starts = [0];
+        for (let i = 0; i < text.length; i++) {
+            if (text[i] === '\n') {
+                starts.push(i + 1);
+            }
+        }
+        return starts;
+    }
+
+    private offsetToPosition(offset: number, lineStarts: number[]): { line: number; character: number } {
+        let low = 0;
+        let high = lineStarts.length - 1;
+
+        while (low <= high) {
+            const mid = (low + high) >> 1;
+            const start = lineStarts[mid];
+            const next = mid + 1 < lineStarts.length ? lineStarts[mid + 1] : Number.MAX_SAFE_INTEGER;
+            if (offset < start) {
+                high = mid - 1;
+            } else if (offset >= next) {
+                low = mid + 1;
+            } else {
+                return { line: mid, character: offset - start };
+            }
+        }
+
+        const lastLine = Math.max(0, lineStarts.length - 1);
+        return { line: lastLine, character: Math.max(0, offset - lineStarts[lastLine]) };
     }
 
     private parseRequestLine(line: string): { method: string; url: string; version: string } {
