@@ -5,9 +5,9 @@ export const collections: Collections[] = [
   {
     id: "req_get_health",
     type: "GET",
-    name: "health-check",
-    folder: "/http/core",
-    url: "https://httpbingo.org/get?source=vortex",
+    name: "GET-健康检查",
+    folder: "/",
+    url: "https://postman-echo.com/get?source=vortex",
     ctime: 1711000000000,
     mtime: 1711000000000,
     headers: {
@@ -22,9 +22,9 @@ export const collections: Collections[] = [
   {
     id: "req_post_create_user",
     type: "POST",
-    name: "create-user",
-    folder: "/http/core",
-    url: "https://httpbingo.org/post",
+    name: "POST-创建用户",
+    folder: "/",
+    url: "https://postman-echo.com/post",
     ctime: 1711000100000,
     mtime: 1711000100000,
     headers: {
@@ -39,9 +39,9 @@ export const collections: Collections[] = [
   {
     id: "req_put_replace_user",
     type: "PUT",
-    name: "replace-user",
-    folder: "/http/core",
-    url: "https://httpbingo.org/put",
+    name: "PUT-更新用户",
+    folder: "/",
+    url: "https://postman-echo.com/put",
     ctime: 1711000200000,
     mtime: 1711000200000,
     headers: {
@@ -56,9 +56,9 @@ export const collections: Collections[] = [
   {
     id: "req_delete_user",
     type: "DELETE",
-    name: "delete-user",
-    folder: "/http/core",
-    url: "https://httpbingo.org/delete",
+    name: "DELETE-删除用户",
+    folder: "/",
+    url: "https://postman-echo.com/delete",
     ctime: 1711000300000,
     mtime: 1711000300000,
     headers: {},
@@ -71,9 +71,9 @@ export const collections: Collections[] = [
   {
     id: "req_patch_user_status",
     type: "PATCH",
-    name: "patch-user-status",
-    folder: "/http/advanced",
-    url: "https://httpbingo.org/patch",
+    name: "PATCH-修改状态",
+    folder: "/",
+    url: "https://postman-echo.com/patch",
     ctime: 1711000400000,
     mtime: 1711000400000,
     headers: {
@@ -88,9 +88,9 @@ export const collections: Collections[] = [
   {
     id: "req_head_status",
     type: "HEAD",
-    name: "head-status",
-    folder: "/http/advanced",
-    url: "https://httpbingo.org/head",
+    name: "HEAD-仅头信息",
+    folder: "/",
+    url: "https://postman-echo.com/get",
     ctime: 1711000500000,
     mtime: 1711000500000,
     headers: {},
@@ -103,9 +103,9 @@ export const collections: Collections[] = [
   {
     id: "req_options_api",
     type: "OPTIONS",
-    name: "options-api",
-    folder: "/http/advanced",
-    url: "https://httpbingo.org/anything/options-api",
+    name: "OPTIONS-预检请求",
+    folder: "/",
+    url: "https://postman-echo.com/get",
     ctime: 1711000600000,
     mtime: 1711000600000,
     headers: {
@@ -120,9 +120,9 @@ export const collections: Collections[] = [
   {
     id: "req_connect_tunnel",
     type: "CONNECT",
-    name: "connect-tunnel",
-    folder: "/http/advanced",
-    url: "http://httpbingo.org/anything/connect-tunnel",
+    name: "CONNECT-隧道测试",
+    folder: "/",
+    url: "http://httpbingo.org/anything/vortex",
     ctime: 1711000700000,
     mtime: 1711000700000,
     headers: {},
@@ -135,9 +135,9 @@ export const collections: Collections[] = [
   {
     id: "req_trace_echo",
     type: "TRACE",
-    name: "trace-echo",
-    folder: "/http/advanced",
-    url: "https://httpbingo.org/anything/trace-echo",
+    name: "TRACE-回显测试",
+    folder: "/",
+    url: "https://httpbingo.org/anything/vortex",
     ctime: 1711000800000,
     mtime: 1711000800000,
     headers: {
@@ -152,9 +152,9 @@ export const collections: Collections[] = [
   {
     id: "req_websocket_feed",
     type: "WEBSOCKET",
-    name: "websocket-feed",
-    folder: "/streaming/realtime",
-    url: "wss://httpbingo.org/websocket/echo",
+    name: "WEBSOCKET-实时通道",
+    folder: "/",
+    url: "wss://ws.postman-echo.com/raw",
     ctime: 1711000900000,
     mtime: 1711000900000,
     headers: {},
@@ -167,8 +167,8 @@ export const collections: Collections[] = [
   {
     id: "req_sse_events",
     type: "SSE",
-    name: "sse-events",
-    folder: "/streaming/realtime",
+    name: "SSE-事件流",
+    folder: "/",
     url: "https://httpbingo.org/sse?count=5&duration=20s&delay=1s",
     ctime: 1711001000000,
     mtime: 1711001000000,
@@ -184,9 +184,9 @@ export const collections: Collections[] = [
   {
     id: "req_eventsource_notifications",
     type: "EVENTSOURCE",
-    name: "eventsource-notifications",
-    folder: "/streaming/realtime",
-    url: "https://stream.wikimedia.org/v2/stream/recentchange",
+    name: "EVENTSOURCE-通知流",
+    folder: "/",
+    url: "https://httpbingo.org/sse?count=5&duration=20s&delay=1s",
     ctime: 1711001100000,
     mtime: 1711001100000,
     headers: {
@@ -201,9 +201,9 @@ export const collections: Collections[] = [
   {
     id: "req_subscribe_topic",
     type: "SUBSCRIBE",
-    name: "subscribe-topic",
-    folder: "/streaming/pubsub",
-    url: "https://httpbingo.org/anything/topics/orders",
+    name: "SUBSCRIBE-订阅主题",
+    folder: "/",
+    url: "https://httpbingo.org/anything/vortex",
     ctime: 1711001200000,
     mtime: 1711001200000,
     headers: {
@@ -218,9 +218,9 @@ export const collections: Collections[] = [
   {
     id: "req_unsubscribe_topic",
     type: "UNSUBSCRIBE",
-    name: "unsubscribe-topic",
-    folder: "/streaming/pubsub",
-    url: "https://httpbingo.org/anything/topics/orders",
+    name: "UNSUBSCRIBE-取消订阅",
+    folder: "/",
+    url: "https://httpbingo.org/anything/vortex",
     ctime: 1711001300000,
     mtime: 1711001300000,
     headers: {},

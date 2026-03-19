@@ -6,3 +6,5 @@ node_modules
 *.vsix
 .clude/
 coverage/
+.tsbuild/
+*.tsbuildinfo

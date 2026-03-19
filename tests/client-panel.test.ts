@@ -29,7 +29,7 @@ describe("client output channel", () => {
   });
 
   it("uses the native vscode output channel as a singleton", async () => {
-    const { getClientPanel } = await import("../src/views/clientPanel");
+    const { getClientPanel } = await import("../src/views/clientPanel.js");
     const first = getClientPanel();
     const second = getClientPanel();
 

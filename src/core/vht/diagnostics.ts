@@ -40,6 +40,7 @@ export class VhtDiagnostics {
 
         const text = document.getText();
         const ast = this.astCache.get(document);
+        
         const ruleIssues = collectDiagnosticIssues(ast, text, getVhtVariables(document.uri));
 
         const parserDiagnostics = ast.errors.map(err => this.createParserDiagnostic(err.range, err.message));

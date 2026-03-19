@@ -79,11 +79,6 @@
           "command": "vortex.request.refresh",
           "when": "view == vortex-explorer",
           "group": "navigation@2"
-        },
-        {
-          "command": "vortex.request.stop",
-          "when": "view == vortex-explorer && vortex.client.busy",
-          "group": "navigation@3"
         }
       ],
       "view/item/context": [
@@ -182,18 +177,18 @@
         "mac": "a",
         "when": "focusedView == vortex-explorer && listFocus  && !inputFocus && listHasSelectionOrFocus"
       },
-        {
-          "command": "vortex.request.send",
-          "key": "enter",
-          "mac": "enter",
-          "when": "focusedView == vortex-explorer && listFocus && !inputFocus && viewItem == vortex.requestNode.idle"
-        },
-        {
-          "command": "vortex.request.stop",
-          "key": "enter",
-          "mac": "enter",
-          "when": "focusedView == vortex-explorer && listFocus && !inputFocus && viewItem == vortex.requestNode.running"
-        },
+      {
+        "command": "vortex.request.send",
+        "key": "enter",
+        "mac": "enter",
+        "when": "focusedView == vortex-explorer && listFocus && !inputFocus && viewItem == vortex.requestNode.idle"
+      },
+      {
+        "command": "vortex.request.stop",
+        "key": "enter",
+        "mac": "enter",
+        "when": "focusedView == vortex-explorer && listFocus && !inputFocus && viewItem == vortex.requestNode.running"
+      },
       {
         "command": "vortex.request.refresh",
         "key": "r",
@@ -215,10 +210,12 @@
     ]
   },
   "scripts": {
-    "compile": "tsc",
+    "compile": "tsc -p tsconfig.app.json",
     "watch": "tsc -watch",
     "clean": "tsc -b --clean",
-    "typecheck:tests": "tsc -p tsconfig.tests.json",
+    "typecheck": "tsc -b",
+    "typecheck:app": "tsc -p tsconfig.app.json --noEmit",
+    "typecheck:tests": "tsc -p tsconfig.vitest.json --noEmit",
     "test": "vitest",
     "test:run": "vitest --run",
     "test:coverage": "vitest --run --coverage --coverage.provider=v8 --coverage.reporter=text --coverage.reporter=json-summary --coverage.thresholds.lines=65 --coverage.thresholds.functions=60 --coverage.thresholds.statements=65 --coverage.thresholds.branches=50"
