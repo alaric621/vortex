@@ -84,7 +84,7 @@
         },
         {
           "command": "vortex.request.send",
-          "when": "view == vortex-explorer && viewItem == vortex.requestNode",
+          "when": "view == vortex-explorer && viewItem == vortex.requestNode && !vortex.client.busy",
           "group": "inline@1"
         },
         {
@@ -96,7 +96,7 @@
       "editor/title": [
         {
           "command": "vortex.request.send",
-          "when": "resourceExtname == .vht",
+          "when": "resourceExtname == .vht && !vortex.client.busy",
           "group": "navigation@1"
         },
         {
