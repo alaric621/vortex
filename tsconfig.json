@@ -5,7 +5,7 @@
     "module": "NodeNext",                        /* 完美支持 ESM 和 Node.js 的模块解析 */
     "moduleResolution": "NodeNext",              /* 配合模块查找策略 */
     "lib": ["ESNext"],                           /* 引入最新标准的库文件定义 */
-    
+    "types": ["node"],
     /* 严格检查（建议开启，减少 Bug） */
     "strict": true,                              /* 开启所有严格类型检查 */
     "skipLibCheck": true,                        /* 跳过库文件的类型检查，加快编译速度 */
@@ -17,15 +17,13 @@
     "esModuleInterop": true,                     /* 允许从没有默认导出的模块中默认导入 */
     "allowSyntheticDefaultImports": true,        /* 允许合成默认导入 */
     "forceConsistentCasingInFileNames": true,    /* 强制文件名大小写一致 */
-    
     /* 输出设置 */
     "outDir": "./dist",                          /* 编译后的文件存放目录 */
     "rootDir": "./src",                          /* 源码目录 */
+    "sourceMap": true,                           /* 生成 .js.map 以支持断点/堆栈映射 */
+    "inlineSources": true,                       /* 在 source map 内嵌 TS 源，远程调试更稳定 */
     "resolveJsonModule": true,                   /* 允许导入 .json 文件（你的配置核心） */
     "isolatedModules": true,                     /* 确保每个文件都可以安全地转译 */
-    /* 装饰器与元数据（如果后续用 NestJS 等框架可能需要） */
-    "experimentalDecorators": true,
-    "emitDecoratorMetadata": true
   },
   "include": ["src/**/*"],                       /* 包含源码目录 */
   "exclude": ["node_modules", "dist", "temp"]    /* 排除无关目录 */

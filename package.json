@@ -14,7 +14,7 @@
     "onFileSystem:vortex-fs",
     "workspaceContains:vortex.json"
   ],
-  "main": "./out/extension.js",
+  "main": "./dist/extension.js",
   "contributes": {
     "resourceLabelFormatters": [
       {
@@ -111,7 +111,7 @@
     },
     "languages": [
       {
-        "id": "vortex-http",
+        "id": "vht",
         "aliases": [
           "Vortex HTTP"
         ],
@@ -123,7 +123,7 @@
     ],
     "grammars": [
       {
-        "language": "vortex-http",
+        "language": "vht",
         "scopeName": "source.vht",
         "path": "./syntaxes/vht.tmLanguage.json",
         "embeddedLanguages": {
@@ -178,10 +178,9 @@
     ]
   },
   "scripts": {
-    "vscode:prepublish": "npm run compile",
-    "compile": "tsc -p ./",
-    "watch": "tsc -watch -p ./",
-    "test:grammar": "vscode-tmgrammar-test \"sample/**/*.vht\"",
+    "compile": "tsc",
+    "watch": "tsc -watch",
+    "clean": "tsc -b --clean",
     "test": "vitest"
   },
   "devDependencies": {
@@ -189,7 +188,6 @@
     "@types/vscode": "^1.109.0",
     "msw": "^2.12.11",
     "typescript": "^5.9.3",
-    "vitest": "^4.0.18",
-    "vscode-tmgrammar-test": "^0.1.3"
+    "vitest": "^4.0.18"
   }
 }

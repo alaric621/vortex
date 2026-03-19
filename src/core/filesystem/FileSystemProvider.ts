@@ -1,6 +1,5 @@
 import * as vscode from "vscode";
-import { getDirContent, getStat, collections, updateFile, deleteNode, renameNode } from "./context";
-import { parseVhtToJson, parserJsonToVht } from "../paser";
+import { getDirContent, getStat, collections, deleteNode, renameNode } from "./context";
 
 function normalizeRequestPath(path: string): string {
   return path.endsWith(".vht") ? path.slice(0, -4) : path;
@@ -57,23 +56,10 @@ export class FileSystemProvider implements vscode.FileSystemProvider {
       throw vscode.FileSystemError.FileNotFound(uri);
     }
 
-    const content = parserJsonToVht(node);
-    return Buffer.from(content, "utf8");
+    return Buffer.from('', "utf8");
   }
   writeFile(uri: vscode.Uri, content: Uint8Array): void {
-    const fullPath = normalizeRequestPath(uri.path);
-    let contentJson;
-    try {
-      contentJson = parseVhtToJson(content.toString());
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "unknown parse error";
-      throw vscode.FileSystemError.Unavailable(`Invalid Request Format: ${message}`);
-    }
-
-    console.log(contentJson);
-    if(!updateFile(collections, fullPath, contentJson)) {
-      throw vscode.FileSystemError.Unavailable("Invalid Request Format");
-    }
+    
   }
   delete(uri: vscode.Uri, options: { recursive: boolean }): void {
     const fullPath = uri.path.replace('.vht', '');
