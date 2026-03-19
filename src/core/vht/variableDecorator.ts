@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { getVhtVariables } from '../../env';
 import { DocumentAstCache } from './documentAstCache';
+import { resolveVariableExpression } from './variableExpression';
 
 type VariableScope = Record<string, unknown>;
 type EvalResult = unknown | typeof UNRESOLVED;
@@ -106,16 +107,8 @@ export class VariableDecorator implements vscode.Disposable {
 
     private resolveExpression(expression: string, variables: VariableScope): unknown {
         if (!expression) return undefined;
-        try {
-            const fn = new Function(
-                'vars',
-                `with (vars) { return (${expression}); }`
-            ) as (vars: VariableScope) => unknown;
-
-            return fn(variables);
-        } catch {
-            return undefined;
-        }
+        const resolved = resolveVariableExpression(expression, variables);
+        return resolved.kind === "resolved" ? resolved.value : undefined;
     }
 
     private toVsCodeRange(range: { start: { line: number; character: number }; end: { line: number; character: number } }): vscode.Range {

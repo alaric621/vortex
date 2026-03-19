@@ -22,6 +22,17 @@ describe("runHook", () => {
     expect(request.scripts?.pre).toBe("console.log('demo-user')");
   });
 
+  it("does not execute arbitrary expressions while resolving templates", () => {
+    const request = resolveHookRequest({
+      id: "req_hook",
+      url: "https://example.com/{{client.token.toUpperCase()}}",
+      body: "{{client['token']}}|{{client.token}}"
+    });
+
+    expect(request.url).toBe("https://example.com/");
+    expect(request.body).toBe("demo-token|demo-token");
+  });
+
   it("executes hook scripts against mutable request and response objects", async () => {
     const messages: string[] = [];
     const context = {

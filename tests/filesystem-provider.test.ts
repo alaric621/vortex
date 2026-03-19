@@ -147,6 +147,31 @@ describe("FileSystemProvider", () => {
     });
   });
 
+  it("rejects writes with parser errors and keeps the existing request intact", () => {
+    const provider = new FileSystemProvider();
+    const uri = vscode.Uri.parse("vortex-fs://request/fsa/hello.vht");
+    const original = collections.find(item => item.name === "hello" && item.folder === "/fsa");
+
+    expect(() => provider.writeFile(
+      uri,
+      Buffer.from("GET https://example.com\n>>>\nconsole.log('broken')\n", "utf8"),
+      { create: false, overwrite: true }
+    )).toThrow("Failed to save request");
+
+    expect(collections.find(item => item.name === "hello" && item.folder === "/fsa")).toEqual(original);
+  });
+
+  it("rejects writes without a request line", () => {
+    const provider = new FileSystemProvider();
+    const uri = vscode.Uri.parse("vortex-fs://request/fsa/hello.vht");
+
+    expect(() => provider.writeFile(
+      uri,
+      Buffer.from("{\"bodyOnly\":true}\n", "utf8"),
+      { create: false, overwrite: true }
+    )).toThrow("missing request line");
+  });
+
   it("creates virtual directories", () => {
     const provider = new FileSystemProvider();
     const uri = vscode.Uri.parse("vortex-fs://request/team/new-folder");
@@ -156,5 +181,20 @@ describe("FileSystemProvider", () => {
     expect(virtualFolders.has("/team/new-folder")).toBe(true);
     const stat = provider.stat(uri);
     expect(stat.type).toBe(vscode.FileType.Directory);
+  });
+
+  it("rejects delete for missing paths", () => {
+    const provider = new FileSystemProvider();
+    const uri = vscode.Uri.parse("vortex-fs://request/team/missing.vht");
+
+    expect(() => provider.delete(uri, { recursive: true })).toThrow("FileNotFound:/team/missing.vht");
+  });
+
+  it("rejects rename when the target already exists", () => {
+    const provider = new FileSystemProvider();
+    const oldUri = vscode.Uri.parse("vortex-fs://request/fsa/hello.vht");
+    const newUri = vscode.Uri.parse("vortex-fs://request/status.vht");
+
+    expect(() => provider.rename(oldUri, newUri)).toThrow("FileExists:/status.vht");
   });
 });
