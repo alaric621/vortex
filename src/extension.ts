@@ -81,6 +81,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   await applyClientContext();
   const clientStateSubscription = onDidChangeClientState(() => {
     void applyClientContext();
+    explorerProvider.refresh();
   });
 
   context.subscriptions.push(
