@@ -1,37 +1,65 @@
 # 更新日志
 
-## 2026-03-18（命令交互优化）
+本文件记录当前仓库已完成并落地到代码的变化。
 
-### 新增
-- 完成 `src/command/explore.ts` 的命令实现：`create`、`rename`、`delete`、`send`、`stop`。
-- 新增请求输出通道 `Vortex Console`，发送请求时输出状态码、耗时、响应头和响应体。
-- 新增快捷键：
-  - `C`：创建（始终从根目录创建）
-  - `R`：刷新
-  - `Shift+Escape`：停止请求
-  - TreeView `Enter`：发送选中请求
+## 2026-03-19
 
-### 修复
-- 修复创建/重命名时文件名输入 `.vht` 造成双后缀的问题。
-- 修复发送请求时未优先使用编辑器未保存内容的问题（现在优先读取当前激活编辑器文本）。
-- 修复空目录创建“无效果”问题：新增显式虚拟目录存储，支持展示、重命名、删除。
-- `rename/delete` 命令执行前统一调用 `list.select`，提升键盘操作一致性。
-- 增加根路径安全保护：禁止删除根目录，禁止将节点重命名到 `/`。
+### 重点更新（VHT 编辑体验）
+- 重构 `.vht` 编辑能力为 AST 驱动的补全与诊断主流程。
+- 变量补全、变量诊断、变量装饰器统一围绕 `parser.ts` 产出的 `ast.variables` 进行上下文判断。
+- 优化请求行补全：方法、协议、HTTP 版本按位置分段提示。
+- 优化 Header 补全：按协议（HTTP / WebSocket / SSE）推荐请求头，且去重已存在 Header。
+
+### 变量相关
+- 新增 `src/env.ts`，暴露默认 mock 变量 `vhtMockVariables`：
+  - `name`
+  - `client.api`
+  - `client.token`
+  - `env`
+- 变量装饰器支持在编辑器中将 `{{expr}}` 显示为解析值，并在光标进入时回显原表达式。
+- 修复变量装饰在多行/换行场景下的显示错位问题（跨行变量不做可视替换）。
+- 修复 `client['']` 补全插入时可能出现重复 `]` 的问题。
+
+### 诊断增强
+- 新增并细化变量诊断分类：
+  - `invalid-variable-expression`：变量表达式语法错误（如 `{{env[]}}`）
+  - `invalid-variable-type-access`：基础类型非法属性/下标访问（如 `{{env['name']}}`）
+  - `unknown-variable-path`：路径不存在（如 `{{client['missing']}}`）
+- 保留并强化变量标记配对检查：
+  - `unclosed-variable-open`
+  - `orphan-variable-close`
+- Header 规则补充枚举值校验与特殊值校验（如 `TE`、`Sec-*`）。
+
+### 语法高亮
+- 更新 `syntaxes/vht.tmLanguage.json`：
+  - 高亮请求方法、协议、主机、端口、路径、HTTP 版本。
+  - 支持两种请求行形式：
+    - `GET http://host:port/path HTTP/x.x`
+    - `GET /path HTTP/x.x`
+  - Header Key / Value 分离高亮。
+  - `{{ ... }}` 内嵌 `source.js`，脚本块 `>>>/<<<` 内嵌 JS。
+
+### 性能与稳定性
+- Completion Provider 增加 AST 缓存，减少重复解析。
+- Diagnostics 增加延迟调度与定时器去抖。
+- Variable Decorator 增加 AST 缓存与表达式求值缓存。
+
+### 测试
+- 诊断规则测试补充变量场景回归用例：
+  - `env[]` 应报语法错误而非未定义变量。
+  - 基础类型非法下标访问应报类型访问错误。
+- 统一 `tests/diagnostics-rules.test.ts` 的测试标题为中文。
+- 当前测试结果：`24/24` 通过。
+
+### 文档
+- 重写 `README.md`：
+  - 删除与现状不一致内容。
+  - 以当前代码能力为准，补齐补全、诊断、变量装饰器、语法高亮说明。
+- 重写 `CHANGELOG.md` 为当前可追踪版本。
 
 ## 2026-03-18
 
-### 修复
-- 修复 `vortex-fs://request/status.vht` 保存失败问题：根目录请求在更新时路径拼接错误导致匹配失败。
-- `FileSystemProvider.writeFile` 统一去除 `.vht` 后缀后再更新数据，避免扩展名影响定位。
-- `FileSystemProvider.readFile` 返回真实 `.vht` 文本内容，不再返回空白占位。
-
-### 新增
-- 实现 `src/core/paser/index.ts` 的核心能力：
-  - `parseVhtToJson`：严格解析请求行、Header、Body、脚本块（`>>>` / `<<<`）。
-  - `parserJsonToVht`：将请求对象序列化为 `.vht` 文本。
-  - `transform`：输出结构化 AST。
-- 增加 `paserJsonToVht` 兼容别名，兼容旧调用。
-
-### 测试
-- 新增 `tests/parser.test.ts`（8 个用例）。
-- 扩展 `tests/filesystem.test.ts`，增加根目录文件更新回归用例。
+### 基础能力
+- 建立 `vortex-fs` 文件系统与树视图基础结构。
+- 增加 VHT 解析与转换基础能力（`parser.ts` / `converter.ts`）。
+- 增加文件系统与转换层基础测试。
