@@ -55,9 +55,8 @@ class ClientPanelViewProvider implements vscode.WebviewViewProvider, ClientLogVi
       return;
     }
 
-    const entries = buildEntries(this.lines);
-    const body = entries.length > 0
-      ? entries.map(entry => renderEntry(entry)).join("")
+    const body = this.lines.length > 0
+      ? this.lines.map(line => renderLine(line)).join("")
       : `<div class="empty">No request logs yet.</div>`;
     const copyPayload = escapeJsString(this.lines.join("\n"));
     this.view.webview.html = `<!DOCTYPE html>
@@ -77,8 +76,6 @@ class ClientPanelViewProvider implements vscode.WebviewViewProvider, ClientLogVi
       --button-bg: var(--vscode-button-secondaryBackground);
       --button-fg: var(--vscode-button-secondaryForeground);
       --button-hover: var(--vscode-button-secondaryHoverBackground);
-      --entry-bg: var(--vscode-editorWidget-background);
-      --entry-head-bg: var(--vscode-titleBar-inactiveBackground);
       --accent: var(--vscode-textLink-foreground);
       --ok: var(--vscode-testing-iconPassed);
       --warn: var(--vscode-testing-iconQueued);
@@ -100,35 +97,11 @@ class ClientPanelViewProvider implements vscode.WebviewViewProvider, ClientLogVi
       display: flex;
       flex-direction: column;
     }
-    .toolbar {
-      flex: 0 0 auto;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-      padding: 10px 14px;
-      border-bottom: 1px solid var(--border);
-      background: var(--toolbar-bg);
-      color: var(--toolbar-fg);
-    }
-    .toolbar-title {
-      font-weight: 700;
-      letter-spacing: 0.02em;
-    }
-    .toolbar-meta {
-      color: var(--muted);
-      font-size: 11px;
-    }
-    .toolbar-actions {
-      display: flex;
-      gap: 8px;
-    }
     button {
       border: 1px solid var(--border);
       background: var(--button-bg);
       color: var(--button-fg);
-      border-radius: 8px;
-      padding: 5px 10px;
+      padding: 4px 8px;
       font: inherit;
       cursor: pointer;
     }
@@ -138,39 +111,14 @@ class ClientPanelViewProvider implements vscode.WebviewViewProvider, ClientLogVi
     .log {
       flex: 1 1 auto;
       overflow: auto;
-      padding: 12px 14px 20px;
-      display: grid;
-      gap: 12px;
+      padding: 8px 12px 28px;
       overscroll-behavior: contain;
-    }
-    .entry {
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      overflow: hidden;
-      background: var(--entry-bg);
-    }
-    .entry-head {
-      display: flex;
-      justify-content: space-between;
-      gap: 12px;
-      padding: 8px 12px;
-      border-bottom: 1px solid var(--border);
-      background: var(--entry-head-bg);
-    }
-    .entry-title {
-      font-weight: 700;
-      color: var(--accent);
-    }
-    .entry-duration {
-      color: var(--muted);
-    }
-    .entry-body {
-      padding: 8px 12px 12px;
     }
     .line {
       white-space: pre-wrap;
       word-break: break-word;
-      padding: 2px 0;
+      padding: 1px 0;
+      border-bottom: 1px solid transparent;
     }
     .divider {
       color: var(--border);
@@ -209,24 +157,25 @@ class ClientPanelViewProvider implements vscode.WebviewViewProvider, ClientLogVi
     .empty {
       color: var(--muted);
       border: 1px dashed var(--border);
-      border-radius: 12px;
       padding: 24px;
       text-align: center;
+    }
+    .actions {
+      position: fixed;
+      right: 12px;
+      bottom: 12px;
+      display: flex;
+      gap: 8px;
+      opacity: 0.92;
     }
   </style>
 </head>
 <body>
   <div class="app">
-    <div class="toolbar">
-      <div>
-        <div class="toolbar-title">Client Log</div>
-        <div class="toolbar-meta">${this.lines.length} lines</div>
-      </div>
-      <div class="toolbar-actions">
-        <button type="button" id="copyAll">Copy All</button>
-      </div>
-    </div>
     <div class="log" id="logRoot">${body}</div>
+  </div>
+  <div class="actions">
+    <button type="button" id="copyAll">Copy</button>
   </div>
   <script>
     const vscode = typeof acquireVsCodeApi === "function" ? acquireVsCodeApi() : undefined;
@@ -234,23 +183,29 @@ class ClientPanelViewProvider implements vscode.WebviewViewProvider, ClientLogVi
     const logRoot = document.getElementById("logRoot");
     const copyText = "${copyPayload}";
     const button = document.getElementById("copyAll");
-    if (logRoot && typeof state.scrollTop === "number") {
-      logRoot.scrollTop = state.scrollTop;
+    const shouldStickBottom = state.atBottom !== false;
+    if (logRoot) {
+      if (shouldStickBottom) {
+        logRoot.scrollTop = logRoot.scrollHeight;
+      } else if (typeof state.scrollTop === "number") {
+        logRoot.scrollTop = state.scrollTop;
+      }
     }
     logRoot?.addEventListener("scroll", () => {
-      vscode?.setState?.({ scrollTop: logRoot.scrollTop });
+      const atBottom = logRoot.scrollTop + logRoot.clientHeight >= logRoot.scrollHeight - 8;
+      vscode?.setState?.({ scrollTop: logRoot.scrollTop, atBottom });
     });
     button?.addEventListener("click", async () => {
       try {
         await navigator.clipboard.writeText(copyText);
         button.textContent = "Copied";
         setTimeout(() => {
-          button.textContent = "Copy All";
+          button.textContent = "Copy";
         }, 1200);
       } catch {
         button.textContent = "Copy Failed";
         setTimeout(() => {
-          button.textContent = "Copy All";
+          button.textContent = "Copy";
         }, 1200);
       }
     });
@@ -278,17 +233,6 @@ export function getClientPanelViewProvider(): vscode.WebviewViewProvider & vscod
 
 function renderLine(line: string): string {
   return `<div class="line ${classifyLine(line)}">${escapeHtml(line)}</div>`;
-}
-
-function renderEntry(entry: { title: string; duration?: string; lines: string[] }): string {
-  const body = entry.lines.map(line => renderLine(line)).join("");
-  return `<section class="entry">
-    <div class="entry-head">
-      <div class="entry-title">${escapeHtml(entry.title)}</div>
-      <div class="entry-duration">${escapeHtml(entry.duration ?? "")}</div>
-    </div>
-    <div class="entry-body">${body}</div>
-  </section>`;
 }
 
 function classifyLine(line: string): string {
@@ -323,36 +267,4 @@ function escapeJsString(input: string): string {
     .replaceAll("\n", "\\n")
     .replaceAll("\r", "\\r")
     .replaceAll("</script>", "<\\/script>");
-}
-
-function buildEntries(lines: string[]): Array<{ title: string; duration?: string; lines: string[] }> {
-  const entries: Array<{ title: string; duration?: string; lines: string[] }> = [];
-  let current: string[] = [];
-
-  const flush = (): void => {
-    const trimmed = current.filter(line => line.trim().length > 0);
-    if (trimmed.length === 0) {
-      current = [];
-      return;
-    }
-
-    const sendLine = trimmed.find(line => line.startsWith("[send]")) ?? trimmed[0];
-    const durationLine = trimmed.find(line => line.startsWith("duration:"));
-    entries.push({
-      title: sendLine,
-      duration: durationLine,
-      lines: trimmed.filter(line => line !== sendLine && line !== durationLine)
-    });
-    current = [];
-  };
-
-  for (const line of lines) {
-    if (/^-{20,}$/.test(line)) {
-      flush();
-      continue;
-    }
-    current.push(line);
-  }
-  flush();
-  return entries.reverse();
 }
