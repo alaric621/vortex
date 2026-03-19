@@ -1,4 +1,7 @@
 import * as vscode from "vscode";
+import { isRequestRunning } from "../../core/client";
+import { getFileContent, collections } from "../../core/filesystem/context";
+import { ensureRequestPathWithoutExtension } from "../../core/filesystem/path-utils";
 import { FileTreeNode } from "./fileTreeNode";
 import { FolderTreeNode } from "./folderTreeNode";
 
@@ -39,10 +42,15 @@ export class ExplorerProvider implements vscode.TreeDataProvider<vscode.TreeItem
           const uri = vscode.Uri.joinPath(parentUri, name);
           return type === vscode.FileType.Directory
             ? new FolderTreeNode(uri, name)
-            : new FileTreeNode(uri);
+            : new FileTreeNode(uri, this.isRunningRequest(uri));
         });
     } catch {
       return [];
     }
   }
-} 
+
+  private isRunningRequest(uri: vscode.Uri): boolean {
+    const request = getFileContent(collections, ensureRequestPathWithoutExtension(uri.path));
+    return Boolean(request?.id && isRequestRunning(request.id));
+  }
+}

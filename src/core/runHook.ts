@@ -1,6 +1,7 @@
 import type * as vscode from "vscode";
 import { getVhtVariables } from "../env";
 import { Collections } from "../../typings/filesystem";
+import { resolveVariableExpression } from "./vht/variableExpression";
 
 export interface HookRequest extends Partial<Collections> {
   id: string;
@@ -32,30 +33,14 @@ type AsyncHookFunction = (
   console: Console
 ) => Promise<void>;
 
-function evaluateExpression(expression: string, variables: Record<string, unknown>): unknown {
-  if (!expression.trim()) {
-    return "";
-  }
-
-  try {
-    const fn = new Function(
-      "vars",
-      `with (vars) { return (${expression}); }`
-    ) as (vars: Record<string, unknown>) => unknown;
-    return fn(variables);
-  } catch {
-    return undefined;
-  }
-}
-
 export function resolveTemplate(input: string | undefined, variables: Record<string, unknown>): string {
   if (!input) {
     return "";
   }
 
   return input.replace(/\{\{([\s\S]*?)\}\}/g, (_match, expression: string) => {
-    const value = evaluateExpression(expression.trim(), variables);
-    return value === undefined ? "" : String(value);
+    const resolved = resolveVariableExpression(expression.trim(), variables);
+    return resolved.kind === "resolved" ? String(resolved.value) : "";
   });
 }
 

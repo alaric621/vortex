@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { getVhtVariables } from '../../env';
 import { VhtAST } from './types';
+import { resolveVariableExpression } from './variableExpression';
 
 export function getVariableCompletions(
     document: vscode.TextDocument,
@@ -168,48 +169,12 @@ function looksLikeFunction(value: unknown, name: string): boolean {
 }
 
 function resolveExpressionValue(expression: string, vars: Record<string, unknown>): { found: boolean; value?: unknown } {
-    const tokens = tokenizePathExpression(expression);
-    if (tokens.length === 0) return { found: false };
-
-    let current: unknown = vars;
-    for (const token of tokens) {
-        if (!isObjectLike(current) || !(token in current)) {
-            return { found: false };
-        }
-        current = (current as Record<string, unknown>)[token];
+    const resolved = resolveVariableExpression(expression, vars);
+    if (resolved.kind !== "resolved") {
+        return { found: false };
     }
 
-    return { found: true, value: current };
-}
-
-function tokenizePathExpression(expression: string): string[] {
-    const trimmed = expression.trim();
-    if (!trimmed) return [];
-
-    const rootMatch = trimmed.match(/^[A-Za-z_$][\w$]*/);
-    if (!rootMatch) return [];
-    const tokens = [rootMatch[0]];
-    let rest = trimmed.slice(rootMatch[0].length);
-
-    while (rest.length > 0) {
-        const dot = rest.match(/^\.\s*([A-Za-z_$][\w$]*)/);
-        if (dot) {
-            tokens.push(dot[1]);
-            rest = rest.slice(dot[0].length);
-            continue;
-        }
-
-        const bracket = rest.match(/^\[['"]([^'"]+)['"]\]/);
-        if (bracket) {
-            tokens.push(bracket[1]);
-            rest = rest.slice(bracket[0].length);
-            continue;
-        }
-
-        return [];
-    }
-
-    return tokens;
+    return { found: true, value: resolved.value };
 }
 
 function toCompletionItems(
@@ -253,8 +218,4 @@ function isPositionInRange(position: vscode.Position, range: vscode.Range): bool
     if (position.line === range.start.line && position.character < range.start.character) return false;
     if (position.line === range.end.line && position.character > range.end.character) return false;
     return true;
-}
-
-function isObjectLike(value: unknown): value is Record<string, unknown> {
-    return Boolean(value) && (typeof value === 'object' || typeof value === 'function');
 }

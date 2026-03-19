@@ -114,6 +114,20 @@ export class FileSystemProvider implements vscode.FileSystemProvider {
     return Buffer.from(this.converter.jsonToVht(this.toSerializableRequest(request)), "utf8");
   }
 
+  private validateWritableVht(uri: vscode.Uri, text: string): ReturnType<VhtParser["parse"]> {
+    const ast = this.parser.parse(text);
+    if (ast.errors.length > 0) {
+      const message = ast.errors[0]?.message ?? "Invalid VHT syntax.";
+      throw vscode.FileSystemError.Unavailable(`Failed to save request: ${message}`);
+    }
+
+    if (!ast.sections.request) {
+      throw vscode.FileSystemError.Unavailable("Failed to save request: missing request line.");
+    }
+
+    return ast;
+  }
+
   writeFile(uri: vscode.Uri, content: Uint8Array, options: { create: boolean; overwrite: boolean }): void {
     const fullPath = ensureRequestPathWithoutExtension(uri.path);
     const pathType = getPathType(collections, fullPath);
@@ -133,7 +147,7 @@ export class FileSystemProvider implements vscode.FileSystemProvider {
     }
 
     const text = Buffer.from(content).toString("utf8");
-    const ast = this.parser.parse(text);
+    const ast = this.validateWritableVht(uri, text);
     const parsed = this.converter.astToJson(ast);
     const updated = updateFile(collections, fullPath, {
       type: parsed.type,
@@ -155,6 +169,9 @@ export class FileSystemProvider implements vscode.FileSystemProvider {
 
   delete(uri: vscode.Uri, _options: { recursive: boolean }): void {
     const fullPath = ensureRequestPathWithoutExtension(uri.path);
+    if (!getPathType(collections, fullPath)) {
+      throw vscode.FileSystemError.FileNotFound(uri);
+    }
     const newData = deleteNode(collections, fullPath);
     collections.length = 0;
     collections.push(...newData);
@@ -165,6 +182,16 @@ export class FileSystemProvider implements vscode.FileSystemProvider {
   rename(oldUri: vscode.Uri, newUri: vscode.Uri): void {
     const oldPath = ensureRequestPathWithoutExtension(oldUri.path);
     const newPath = ensureRequestPathWithoutExtension(newUri.path);
+    const oldType = getPathType(collections, oldPath);
+    if (!oldType) {
+      throw vscode.FileSystemError.FileNotFound(oldUri);
+    }
+
+    const newType = getPathType(collections, newPath);
+    if (newType && oldPath !== newPath) {
+      throw vscode.FileSystemError.FileExists(newUri);
+    }
+
     renameNode(collections, oldPath, newPath);
     this.didChangeFileEmitter.fire([
       { type: vscode.FileChangeType.Deleted, uri: oldUri },

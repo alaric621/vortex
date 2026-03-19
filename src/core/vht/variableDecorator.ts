@@ -1,29 +1,20 @@
 import * as vscode from 'vscode';
-import { VhtParser } from './parser';
-import { VhtAST } from './types';
 import { getVhtVariables } from '../../env';
+import { DocumentAstCache } from './documentAstCache';
+import { resolveVariableExpression } from './variableExpression';
 
 type VariableScope = Record<string, unknown>;
 type EvalResult = unknown | typeof UNRESOLVED;
 
-interface AstCacheEntry {
-    version: number;
-    ast: VhtAST;
-}
-
 const UNRESOLVED = Symbol('UNRESOLVED');
 
 export class VariableDecorator implements vscode.Disposable {
-    private readonly parser: VhtParser;
     private readonly hiddenExpressionDecoration: vscode.TextEditorDecorationType;
     private readonly inlineResolvedDecoration: vscode.TextEditorDecorationType;
     private readonly errorDecoration: vscode.TextEditorDecorationType;
-    private readonly astCache: Map<string, AstCacheEntry>;
     private readonly evalCache: Map<string, EvalResult>;
 
-    constructor() {
-        this.parser = new VhtParser();
-        this.astCache = new Map();
+    constructor(private readonly astCache: DocumentAstCache = new DocumentAstCache()) {
         this.evalCache = new Map();
 
         this.hiddenExpressionDecoration = vscode.window.createTextEditorDecorationType({
@@ -94,20 +85,11 @@ export class VariableDecorator implements vscode.Disposable {
         this.hiddenExpressionDecoration.dispose();
         this.inlineResolvedDecoration.dispose();
         this.errorDecoration.dispose();
-        this.astCache.clear();
         this.evalCache.clear();
     }
 
-    private getOrParseAst(document: vscode.TextDocument): VhtAST {
-        const key = document.uri.toString();
-        const cached = this.astCache.get(key);
-        if (cached && cached.version === document.version) {
-            return cached.ast;
-        }
-
-        const ast = this.parser.parse(document.getText());
-        this.astCache.set(key, { version: document.version, ast });
-        return ast;
+    private getOrParseAst(document: vscode.TextDocument) {
+        return this.astCache.get(document);
     }
 
     private resolveExpressionCached(expression: string, variables: VariableScope): EvalResult {
@@ -125,16 +107,8 @@ export class VariableDecorator implements vscode.Disposable {
 
     private resolveExpression(expression: string, variables: VariableScope): unknown {
         if (!expression) return undefined;
-        try {
-            const fn = new Function(
-                'vars',
-                `with (vars) { return (${expression}); }`
-            ) as (vars: VariableScope) => unknown;
-
-            return fn(variables);
-        } catch {
-            return undefined;
-        }
+        const resolved = resolveVariableExpression(expression, variables);
+        return resolved.kind === "resolved" ? resolved.value : undefined;
     }
 
     private toVsCodeRange(range: { start: { line: number; character: number }; end: { line: number; character: number } }): vscode.Range {

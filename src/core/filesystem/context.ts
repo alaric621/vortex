@@ -31,7 +31,10 @@ export const collections: Collections[] = [
       "Content-Type": "application/json"
     },
     body: "{\n  \"name\": \"{{name}}\"\n}",
-    scripts: { pre: "", post: "console.log(response.body);" }
+    scripts: {
+      pre: "request.headers = { ...request.headers, 'X-Debug-User': String(variables.name) }; console.log(`Creating user for ${variables.name}`);",
+      post: "console.log(`Create user status: ${response.status}`); console.log(response.body ?? '');"
+    }
   },
   {
     id: "req_put_replace_user",
@@ -45,7 +48,10 @@ export const collections: Collections[] = [
       "Content-Type": "application/json"
     },
     body: "{\n  \"name\": \"updated-user\"\n}",
-    scripts: { pre: "", post: "" }
+    scripts: {
+      pre: "request.headers = { ...request.headers, 'X-Replace-Mode': 'full' }; console.log(`Replacing payload for ${request.name}`);",
+      post: "console.log(`Replace user completed with ${response.status}`);"
+    }
   },
   {
     id: "req_delete_user",
@@ -57,7 +63,10 @@ export const collections: Collections[] = [
     mtime: 1711000300000,
     headers: {},
     body: "",
-    scripts: { pre: "", post: "" }
+    scripts: {
+      pre: "request.headers = { ...request.headers, 'X-Delete-Reason': 'cleanup' }; console.log(`Deleting resource via ${request.url}`);",
+      post: "console.log(`Delete response status: ${response.status}`);"
+    }
   },
   {
     id: "req_patch_user_status",
@@ -71,7 +80,10 @@ export const collections: Collections[] = [
       "Content-Type": "application/json"
     },
     body: "{\n  \"enabled\": true\n}",
-    scripts: { pre: "", post: "" }
+    scripts: {
+      pre: "request.headers = { ...request.headers, 'X-Patch-Trace': 'status-toggle' }; console.log('Patching user status');",
+      post: "console.log(`Patched status, response code ${response.status}`);"
+    }
   },
   {
     id: "req_head_status",
@@ -83,7 +95,10 @@ export const collections: Collections[] = [
     mtime: 1711000500000,
     headers: {},
     body: "",
-    scripts: { pre: "", post: "" }
+    scripts: {
+      pre: "request.headers = { ...request.headers, 'X-Head-Check': 'true' }; console.log('Checking headers only');",
+      post: "console.log(`HEAD finished with ${response.status}`);"
+    }
   },
   {
     id: "req_options_api",
@@ -97,7 +112,10 @@ export const collections: Collections[] = [
       Origin: "http://localhost:3000"
     },
     body: "",
-    scripts: { pre: "", post: "" }
+    scripts: {
+      pre: "request.headers = { ...request.headers, 'Access-Control-Request-Method': 'GET' }; console.log('Preparing preflight request');",
+      post: "console.log(`OPTIONS allow headers: ${JSON.stringify(response.headers ?? {})}`);"
+    }
   },
   {
     id: "req_connect_tunnel",
@@ -109,7 +127,10 @@ export const collections: Collections[] = [
     mtime: 1711000700000,
     headers: {},
     body: "",
-    scripts: { pre: "", post: "" }
+    scripts: {
+      pre: "request.headers = { ...request.headers, Host: 'httpbingo.org' }; console.log('Opening CONNECT tunnel');",
+      post: "console.log(`CONNECT meta: ${JSON.stringify(response.meta ?? {})}`);"
+    }
   },
   {
     id: "req_trace_echo",
@@ -123,7 +144,10 @@ export const collections: Collections[] = [
       "Max-Forwards": "5"
     },
     body: "",
-    scripts: { pre: "", post: "" }
+    scripts: {
+      pre: "request.headers = { ...request.headers, 'X-Trace-Request': 'echo' }; console.log('Tracing upstream request');",
+      post: "console.log(`TRACE response length: ${(response.body ?? '').length}`);"
+    }
   },
   {
     id: "req_websocket_feed",
@@ -152,7 +176,10 @@ export const collections: Collections[] = [
       Accept: "text/event-stream"
     },
     body: "",
-    scripts: { pre: "", post: "console.log(`Captured ${response.events.length} SSE events`);" }
+    scripts: {
+      pre: "request.headers = { ...request.headers, 'Last-Event-ID': 'seed-1' }; console.log('Starting SSE capture');",
+      post: "console.log(`Captured ${response.events.length} SSE events`);"
+    }
   },
   {
     id: "req_eventsource_notifications",
@@ -166,7 +193,10 @@ export const collections: Collections[] = [
       Accept: "text/event-stream"
     },
     body: "",
-    scripts: { pre: "", post: "console.log(`Recentchange events: ${response.events.length}`);" }
+    scripts: {
+      pre: "request.headers = { ...request.headers, 'X-Stream-Client': 'vortex' }; console.log('Connecting to EventSource stream');",
+      post: "console.log(`Recentchange events: ${response.events.length}`);"
+    }
   },
   {
     id: "req_subscribe_topic",
@@ -180,7 +210,10 @@ export const collections: Collections[] = [
       Prefer: "wait=30"
     },
     body: "",
-    scripts: { pre: "", post: "" }
+    scripts: {
+      pre: "request.headers = { ...request.headers, 'X-Subscription-Mode': 'subscribe' }; console.log('Subscribing to topic orders');",
+      post: "console.log(`Subscribe status: ${response.status}`);"
+    }
   },
   {
     id: "req_unsubscribe_topic",
@@ -192,7 +225,10 @@ export const collections: Collections[] = [
     mtime: 1711001300000,
     headers: {},
     body: "",
-    scripts: { pre: "", post: "" }
+    scripts: {
+      pre: "request.headers = { ...request.headers, 'X-Subscription-Mode': 'unsubscribe' }; console.log('Unsubscribing from topic orders');",
+      post: "console.log(`Unsubscribe status: ${response.status}`);"
+    }
   }
 ];
 

@@ -1,19 +1,17 @@
 import * as vscode from 'vscode';
 import { getVhtVariables } from '../../env';
-import { VhtParser } from './parser';
 import { Range as VhtRange } from './types';
 import { collectDiagnosticIssues } from './diagnosticsRules';
 import { VhtDiagnosticIssue } from './diagnosticsRules/types';
+import { DocumentAstCache } from './documentAstCache';
 
 export class VhtDiagnostics {
     private readonly collection: vscode.DiagnosticCollection;
-    private readonly parser: VhtParser;
     private readonly timers: Map<string, NodeJS.Timeout>;
 
-    constructor() {
+    constructor(private readonly astCache: DocumentAstCache = new DocumentAstCache()) {
         // 在编辑器“问题”面板中显示的分类名称
         this.collection = vscode.languages.createDiagnosticCollection('vht-linter');
-        this.parser = new VhtParser();
         this.timers = new Map();
     }
 
@@ -41,7 +39,7 @@ export class VhtDiagnostics {
         if (document.languageId !== 'vht') return;
 
         const text = document.getText();
-        const ast = this.parser.parse(text);
+        const ast = this.astCache.get(document);
         const ruleIssues = collectDiagnosticIssues(ast, text, getVhtVariables(document.uri));
 
         const parserDiagnostics = ast.errors.map(err => this.createParserDiagnostic(err.range, err.message));
@@ -62,6 +60,7 @@ export class VhtDiagnostics {
             clearTimeout(existing);
             this.timers.delete(key);
         }
+        this.astCache.delete(document);
         this.collection.delete(document.uri);
     }
 

@@ -4,11 +4,7 @@ const vscodeMocks = vi.hoisted(() => ({
   registerCommandMock: vi.fn(),
   executeCommandMock: vi.fn(),
   showInputBoxMock: vi.fn(),
-  showWarningMessageMock: vi.fn(),
-  createOutputChannelMock: vi.fn(() => ({
-    appendLine: vi.fn(),
-    show: vi.fn()
-  }))
+  showWarningMessageMock: vi.fn()
 }));
 
 vi.mock("vscode", () => {
@@ -45,38 +41,43 @@ vi.mock("vscode", () => {
     window: {
       showInputBox: vscodeMocks.showInputBoxMock,
       showWarningMessage: vscodeMocks.showWarningMessageMock,
-      createOutputChannel: vscodeMocks.createOutputChannelMock,
       activeTextEditor: undefined
     }
   };
 });
 
 const clientMocks = vi.hoisted(() => ({
-  sendMock: vi.fn(),
+  defaultMock: vi.fn(),
   stopMock: vi.fn(),
   isRequestRunningMock: vi.fn(() => false),
-  getActiveRequestIdMock: vi.fn<() => string | undefined>(() => undefined)
+  getActiveRequestIdMock: vi.fn<() => string | undefined>(() => undefined),
+  getClientOutputChannelMock: vi.fn(() => ({
+    appendLine: vi.fn(),
+    show: vi.fn()
+  }))
 }));
 const hookMocks = vi.hoisted(() => ({
-  resolveHookRequestMock: vi.fn((request: unknown) => request),
-  runHookMock: vi.fn(() => Promise.resolve())
+  runHookStrictMock: vi.fn<(code: string, scope?: Record<string, any>) => Promise<void>>(
+    () => Promise.resolve()
+  )
 }));
 
 vi.mock("../src/core/client", () => ({
-  send: clientMocks.sendMock,
+  default: clientMocks.defaultMock,
   stop: clientMocks.stopMock,
   isRequestRunning: clientMocks.isRequestRunningMock,
-  getActiveRequestId: clientMocks.getActiveRequestIdMock
+  getActiveRequestId: clientMocks.getActiveRequestIdMock,
+  getClientOutputChannel: clientMocks.getClientOutputChannelMock
 }));
 
 vi.mock("../src/core/runHook", () => ({
-  resolveHookRequest: hookMocks.resolveHookRequestMock,
-  runHook: hookMocks.runHookMock
+  runHookStrict: hookMocks.runHookStrictMock
 }));
 
 import * as vscode from "vscode";
 import { registerExploreCommands } from "../src/command/explore";
 import { collections, virtualFolders } from "../src/core/filesystem/context";
+import { clearRuntimeVhtVariables, getVhtVariables } from "../src/env";
 
 const seedCollections = [
   {
@@ -119,17 +120,19 @@ describe("registerExploreCommands", () => {
     vscodeMocks.executeCommandMock.mockReset();
     vscodeMocks.showInputBoxMock.mockReset();
     vscodeMocks.showWarningMessageMock.mockReset();
-    vscodeMocks.createOutputChannelMock.mockClear();
-    clientMocks.sendMock.mockReset();
+    clientMocks.defaultMock.mockReset();
     clientMocks.stopMock.mockReset();
     clientMocks.isRequestRunningMock.mockReset();
     clientMocks.isRequestRunningMock.mockReturnValue(false);
     clientMocks.getActiveRequestIdMock.mockReset();
     clientMocks.getActiveRequestIdMock.mockReturnValue(undefined);
-    hookMocks.resolveHookRequestMock.mockReset();
-    hookMocks.resolveHookRequestMock.mockImplementation((request: unknown) => request);
-    hookMocks.runHookMock.mockReset();
-    hookMocks.runHookMock.mockResolvedValue(undefined);
+    clientMocks.getClientOutputChannelMock.mockReset();
+    clientMocks.getClientOutputChannelMock.mockReturnValue({
+      appendLine: vi.fn(),
+      show: vi.fn()
+    });
+    hookMocks.runHookStrictMock.mockReset();
+    hookMocks.runHookStrictMock.mockResolvedValue(undefined);
     fsProvider.rename.mockReset();
     fsProvider.delete.mockReset();
     explorerProvider.refresh.mockReset();
@@ -141,6 +144,7 @@ describe("registerExploreCommands", () => {
       scripts: { ...item.scripts }
     })));
     virtualFolders.clear();
+    clearRuntimeVhtVariables();
   });
 
   function getHandler(commandId: string): (...args: unknown[]) => Promise<void> {
@@ -227,6 +231,10 @@ describe("registerExploreCommands", () => {
   });
 
   it("sends the selected request payload", async () => {
+    const request = collections.find(item => item.id === "req_team_users");
+    if (request) {
+      request.scripts = { pre: "console.log('pre')", post: "console.log('post')" };
+    }
     (vscode.window as any).activeTextEditor = {
       document: {
         uri: vscode.Uri.from({ scheme: "vortex-fs", authority: "request", path: "/team/users.vht" }),
@@ -234,7 +242,7 @@ describe("registerExploreCommands", () => {
         save: vi.fn().mockResolvedValue(true)
       }
     };
-    clientMocks.sendMock.mockResolvedValue({
+    clientMocks.defaultMock.mockResolvedValue({
       status: 200,
       events: []
     });
@@ -244,23 +252,38 @@ describe("registerExploreCommands", () => {
       resourceUri: vscode.Uri.from({ scheme: "vortex-fs", authority: "request", path: "/team/users.vht" })
     });
 
-    expect(hookMocks.resolveHookRequestMock).toHaveBeenCalled();
-    expect(hookMocks.runHookMock).toHaveBeenNthCalledWith(
+    expect(hookMocks.runHookStrictMock).toHaveBeenNthCalledWith(
       1,
-      "",
+      "console.log('pre')",
       expect.objectContaining({
-        request: expect.objectContaining({ id: "req_team_users" }),
-        response: expect.objectContaining({ events: [] })
+        client: expect.objectContaining({
+          name: "demo-user",
+          client: expect.objectContaining({
+            token: "demo-token"
+          })
+        })
       })
     );
-    expect(clientMocks.sendMock).toHaveBeenCalledWith(expect.objectContaining({
-      id: "req_team_users",
-      name: "users"
-    }));
-    expect(hookMocks.runHookMock).toHaveBeenNthCalledWith(
-      2,
-      "",
+    expect(clientMocks.defaultMock).toHaveBeenCalledWith(
+      "req_team_users",
       expect.objectContaining({
+        id: "req_team_users",
+        name: "users"
+      }),
+      expect.objectContaining({
+        name: "demo-user",
+        client: expect.objectContaining({
+          token: "demo-token"
+        })
+      })
+    );
+    expect(hookMocks.runHookStrictMock).toHaveBeenNthCalledWith(
+      2,
+      "console.log('post')",
+      expect.objectContaining({
+        client: expect.objectContaining({
+          name: "demo-user"
+        }),
         response: expect.objectContaining({ status: 200 })
       })
     );
@@ -274,13 +297,122 @@ describe("registerExploreCommands", () => {
       resourceUri: vscode.Uri.from({ scheme: "vortex-fs", authority: "request", path: "/team/users.vht" })
     });
 
-    expect(clientMocks.sendMock).not.toHaveBeenCalled();
+    expect(clientMocks.defaultMock).not.toHaveBeenCalled();
     expect(vscodeMocks.showWarningMessageMock).toHaveBeenCalledWith(
       "Request is already running: req_team_users"
     );
   });
 
+  it("does not execute post hook when send fails", async () => {
+    const request = collections.find(item => item.id === "req_team_users");
+    if (request) {
+      request.scripts = { pre: "console.log('pre')", post: "console.log('post')" };
+    }
+    const errorMessage = "network failed";
+    clientMocks.defaultMock.mockRejectedValue(new Error(errorMessage));
+    const sendCommand = getHandler("vortex.request.send");
+
+    await sendCommand({
+      resourceUri: vscode.Uri.from({ scheme: "vortex-fs", authority: "request", path: "/team/users.vht" })
+    });
+
+    expect(hookMocks.runHookStrictMock).toHaveBeenCalledTimes(1);
+    expect(hookMocks.runHookStrictMock).toHaveBeenNthCalledWith(
+      1,
+      "console.log('pre')",
+      expect.objectContaining({
+        client: expect.objectContaining({
+          name: "demo-user"
+        })
+      })
+    );
+    expect(vscodeMocks.showWarningMessageMock).toHaveBeenCalledWith(errorMessage);
+  });
+
+  it("executes post hook once after successful send", async () => {
+    const request = collections.find(item => item.id === "req_team_users");
+    if (request) {
+      request.scripts = { pre: "console.log('pre')", post: "console.log('post')" };
+    }
+    clientMocks.defaultMock.mockResolvedValue({
+      status: 200,
+      events: ["[12:00:00.001] one", "[12:00:00.002] two"]
+    });
+    const sendCommand = getHandler("vortex.request.send");
+
+    await sendCommand({
+      resourceUri: vscode.Uri.from({ scheme: "vortex-fs", authority: "request", path: "/team/users.vht" })
+    });
+
+    expect(hookMocks.runHookStrictMock).toHaveBeenCalledTimes(2);
+    expect(hookMocks.runHookStrictMock).toHaveBeenNthCalledWith(
+      1,
+      "console.log('pre')",
+      expect.objectContaining({
+        client: expect.objectContaining({
+          name: "demo-user"
+        })
+      })
+    );
+    expect(hookMocks.runHookStrictMock).toHaveBeenNthCalledWith(
+      2,
+      "console.log('post')",
+      expect.objectContaining({
+        client: expect.objectContaining({
+          name: "demo-user"
+        }),
+        response: expect.objectContaining({ events: ["[12:00:00.001] one", "[12:00:00.002] two"] })
+      })
+    );
+  });
+
+  it("persists hook variable mutations into runtime context", async () => {
+    const request = collections.find(item => item.id === "req_team_users");
+    if (request) {
+      request.headers = {
+        Authorization: "{{client.name}}"
+      };
+      request.scripts = {
+        pre: "client.name = 'hello';",
+        post: ""
+      };
+    }
+
+    clientMocks.defaultMock.mockResolvedValue({
+      status: 200,
+      events: []
+    });
+    hookMocks.runHookStrictMock.mockImplementation(async (
+      _code: string,
+      scope?: Record<string, any>
+    ) => {
+      if (!scope) {
+        throw new Error("missing hook scope");
+      }
+      scope.client.name = "hello";
+    });
+
+    const sendCommand = getHandler("vortex.request.send");
+    const resourceUri = vscode.Uri.from({ scheme: "vortex-fs", authority: "request", path: "/team/users.vht" });
+
+    await sendCommand({ resourceUri });
+
+    expect(clientMocks.defaultMock).toHaveBeenCalledWith(
+      "req_team_users",
+      expect.anything(),
+      expect.objectContaining({
+        name: "hello"
+      })
+    );
+    expect(getVhtVariables(resourceUri)).toEqual(
+      expect.objectContaining({
+        name: "hello"
+      })
+    );
+  });
+
   it("stops the selected request by id", async () => {
+    clientMocks.isRequestRunningMock.mockReturnValue(true);
     const stopCommand = getHandler("vortex.request.stop");
 
     await stopCommand({
@@ -297,5 +429,17 @@ describe("registerExploreCommands", () => {
     await stopCommand();
 
     expect(clientMocks.stopMock).toHaveBeenCalledWith("req_team_users");
+  });
+
+  it("falls back to the active request when the selected request is not running", async () => {
+    clientMocks.getActiveRequestIdMock.mockReturnValue("req_running");
+    clientMocks.isRequestRunningMock.mockReturnValue(false);
+    const stopCommand = getHandler("vortex.request.stop");
+
+    await stopCommand({
+      resourceUri: vscode.Uri.from({ scheme: "vortex-fs", authority: "request", path: "/team/users.vht" })
+    });
+
+    expect(clientMocks.stopMock).toHaveBeenCalledWith("req_running");
   });
 });

@@ -6,11 +6,17 @@ import { registerExploreCommands } from "./command/explore";
 import { VhtDiagnostics } from './core/vht/diagnostics';
 import { VhtCompletionProvider } from './core/vht/completion';
 import { VariableDecorator } from './core/vht/variableDecorator';
+import { DocumentAstCache } from './core/vht/documentAstCache';
+import { onDidChangeVhtVariables } from "./env";
+import { prepareRuntimeVariables } from "./core/runtimeVariables";
+import { collections, getFileContent } from "./core/filesystem/context";
+import { ensureRequestPathWithoutExtension } from "./core/filesystem/path-utils";
 
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
   const scheme = "vortex-fs";
   const authority = "request";
-  const diagnosticManager = new VhtDiagnostics();
+  const astCache = new DocumentAstCache();
+  const diagnosticManager = new VhtDiagnostics(astCache);
   const selector: vscode.DocumentSelector = [
     { language: 'vht' } // 覆盖 file / untitled / 自定义 scheme
   ];
@@ -29,12 +35,12 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   // 1. 注册自动补全
   const completionProvider = vscode.languages.registerCompletionItemProvider(
     selector,
-    new VhtCompletionProvider(),
+    new VhtCompletionProvider(astCache),
     ...completionTriggerChars
   );
-  const variableDecorator = new VariableDecorator();
+  const variableDecorator = new VariableDecorator(astCache);
   // 注册诊断（语法检查）
-  context.subscriptions.push(diagnosticManager.getCollection());
+  context.subscriptions.push(astCache, diagnosticManager.getCollection());
 
   const fsProvider = new FileSystemProvider();
   const explorerProvider = new ExplorerProvider(scheme, authority);
@@ -42,9 +48,29 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   context.subscriptions.push(
     vscode.workspace.onDidChangeTextDocument(e => {
       diagnosticManager.scheduleUpdate(e.document, 140);
+      if (vscode.window.activeTextEditor?.document.uri.toString() === e.document.uri.toString()) {
+        variableDecorator.update(vscode.window.activeTextEditor);
+      }
     }),
     vscode.workspace.onDidCloseTextDocument(document => {
       diagnosticManager.clear(document);
+    }),
+    vscode.workspace.onDidSaveTextDocument(async document => {
+      if (document.languageId !== "vht") {
+        return;
+      }
+
+      const request = getFileContent(collections, ensureRequestPathWithoutExtension(document.uri.path));
+      if (!request) {
+        return;
+      }
+
+      try {
+        await prepareRuntimeVariables(document.uri, request);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        vscode.window.showWarningMessage(message);
+      }
     }),
     vscode.window.onDidChangeTextEditorSelection(e => {
       if (e.textEditor.document.languageId !== 'vht') return;
@@ -76,6 +102,20 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   await applyClientContext();
   const clientStateSubscription = onDidChangeClientState(() => {
     void applyClientContext();
+    explorerProvider.refresh();
+  });
+  const variableStateSubscription = onDidChangeVhtVariables(documentUri => {
+    const editor = vscode.window.activeTextEditor;
+    if (!editor) {
+      return;
+    }
+
+    if (documentUri && editor.document.uri.toString() !== documentUri.toString()) {
+      return;
+    }
+
+    diagnosticManager.update(editor.document);
+    variableDecorator.update(editor);
   });
 
   context.subscriptions.push(
@@ -83,6 +123,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     completionProvider,
     variableDecorator,
     clientStateSubscription,
+    variableStateSubscription,
     vscode.workspace.registerFileSystemProvider(scheme, fsProvider),
     ...exploreCommands,
     vscode.commands.registerCommand("vortex.request.refresh", async () => {
