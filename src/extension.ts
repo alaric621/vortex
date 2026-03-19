@@ -18,12 +18,12 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     ...'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
   ];
 
-    // 1. 注册自动补全
-    const completionProvider = vscode.languages.registerCompletionItemProvider(
-        selector,
-        new VhtCompletionProvider(),
-        ...completionTriggerChars
-    );
+  // 1. 注册自动补全
+  const completionProvider = vscode.languages.registerCompletionItemProvider(
+    selector,
+    new VhtCompletionProvider(),
+    ...completionTriggerChars
+  );
   // 注册诊断（语法检查）
   context.subscriptions.push(diagnosticManager.getCollection());
 
@@ -46,7 +46,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   context.subscriptions.push(
     // 记得把 treeView 实例也加进来
     exploretreeView,
-completionProvider,
+    completionProvider,
     vscode.workspace.registerFileSystemProvider(scheme, fsProvider),
 
     vscode.commands.registerCommand("vortex.request.refresh", async () => {

@@ -18,7 +18,7 @@
   ],
   "repository": {
     "request": {
-      "name": "meta.request.http",
+      "name": "meta.request.vht",
       "begin": "^(GET|POST|PUT|DELETE|PATCH|HEAD|OPTIONS|CONNECT|TRACE|WEBSOCKET|SSE|EVENTSOURCE|SUBSCRIBE|UNSUBSCRIBE)\\b",
       "end": "^(?=\\s*$)",
       "beginCaptures": {
@@ -28,12 +28,69 @@
       },
       "patterns": [
         {
-          "match": "^(GET|POST|PUT|DELETE|PATCH|HEAD|OPTIONS|CONNECT|TRACE|WEBSOCKET|SSE|EVENTSOURCE|SUBSCRIBE|UNSUBSCRIBE)(\\s+)(\\S+.*)$",
+          "match": "(\\s+)((https?|wss?)://)([^\\/:\\s]+)(?::(\\d+))?([^\\s]*)(\\s+)(HTTP\\/\\d+(?:\\.\\d+)?)\\s*$",
           "captures": {
-            "1": {
-              "name": "keyword.control.http"
+            "2": {
+              "name": "string.unquoted.url.http"
             },
             "3": {
+              "name": "entity.name.protocol.http"
+            },
+            "4": {
+              "name": "entity.name.host.http"
+            },
+            "5": {
+              "name": "constant.numeric.port.http"
+            },
+            "6": {
+              "name": "string.unquoted.url.path.http"
+            },
+            "7": {
+              "name": "punctuation.separator.whitespace.http"
+            },
+            "8": {
+              "name": "constant.language.http.version"
+            }
+          }
+        },
+        {
+          "match": "(\\s+)((https?|wss?)://)([^\\/:\\s]+)(?::(\\d+))?([^\\s]*)\\s*$",
+          "captures": {
+            "2": {
+              "name": "string.unquoted.url.http"
+            },
+            "3": {
+              "name": "entity.name.protocol.http"
+            },
+            "4": {
+              "name": "entity.name.host.http"
+            },
+            "5": {
+              "name": "constant.numeric.port.http"
+            },
+            "6": {
+              "name": "string.unquoted.url.path.http"
+            }
+          }
+        },
+        {
+          "match": "(\\s+)(\\/(?:[^\\s]*))(\\s+)(HTTP\\/\\d+(?:\\.\\d+)?)\\s*$",
+          "captures": {
+            "2": {
+              "name": "string.unquoted.url.http"
+            },
+            "3": {
+              "name": "punctuation.separator.whitespace.http"
+            },
+            "4": {
+              "name": "constant.language.http.version"
+            }
+          }
+        },
+        {
+          "match": "(\\s+)(\\/(?:[^\\s]*))\\s*$",
+          "captures": {
+            "2": {
               "name": "string.unquoted.url.http"
             }
           }
