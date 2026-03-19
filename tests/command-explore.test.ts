@@ -281,6 +281,7 @@ describe("registerExploreCommands", () => {
   });
 
   it("stops the selected request by id", async () => {
+    clientMocks.isRequestRunningMock.mockReturnValue(true);
     const stopCommand = getHandler("vortex.request.stop");
 
     await stopCommand({
@@ -297,5 +298,17 @@ describe("registerExploreCommands", () => {
     await stopCommand();
 
     expect(clientMocks.stopMock).toHaveBeenCalledWith("req_team_users");
+  });
+
+  it("falls back to the active request when the selected request is not running", async () => {
+    clientMocks.getActiveRequestIdMock.mockReturnValue("req_running");
+    clientMocks.isRequestRunningMock.mockReturnValue(false);
+    const stopCommand = getHandler("vortex.request.stop");
+
+    await stopCommand({
+      resourceUri: vscode.Uri.from({ scheme: "vortex-fs", authority: "request", path: "/team/users.vht" })
+    });
+
+    expect(clientMocks.stopMock).toHaveBeenCalledWith("req_running");
   });
 });

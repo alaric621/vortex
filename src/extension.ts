@@ -6,11 +6,13 @@ import { registerExploreCommands } from "./command/explore";
 import { VhtDiagnostics } from './core/vht/diagnostics';
 import { VhtCompletionProvider } from './core/vht/completion';
 import { VariableDecorator } from './core/vht/variableDecorator';
+import { DocumentAstCache } from './core/vht/documentAstCache';
 
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
   const scheme = "vortex-fs";
   const authority = "request";
-  const diagnosticManager = new VhtDiagnostics();
+  const astCache = new DocumentAstCache();
+  const diagnosticManager = new VhtDiagnostics(astCache);
   const selector: vscode.DocumentSelector = [
     { language: 'vht' } // 覆盖 file / untitled / 自定义 scheme
   ];
@@ -29,12 +31,12 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   // 1. 注册自动补全
   const completionProvider = vscode.languages.registerCompletionItemProvider(
     selector,
-    new VhtCompletionProvider(),
+    new VhtCompletionProvider(astCache),
     ...completionTriggerChars
   );
-  const variableDecorator = new VariableDecorator();
+  const variableDecorator = new VariableDecorator(astCache);
   // 注册诊断（语法检查）
-  context.subscriptions.push(diagnosticManager.getCollection());
+  context.subscriptions.push(astCache, diagnosticManager.getCollection());
 
   const fsProvider = new FileSystemProvider();
   const explorerProvider = new ExplorerProvider(scheme, authority);
@@ -42,6 +44,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   context.subscriptions.push(
     vscode.workspace.onDidChangeTextDocument(e => {
       diagnosticManager.scheduleUpdate(e.document, 140);
+      if (vscode.window.activeTextEditor?.document.uri.toString() === e.document.uri.toString()) {
+        variableDecorator.update(vscode.window.activeTextEditor);
+      }
     }),
     vscode.workspace.onDidCloseTextDocument(document => {
       diagnosticManager.clear(document);

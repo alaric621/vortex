@@ -249,13 +249,15 @@ async function stopRequestCommand(target?: vscode.TreeItem): Promise<void> {
     const request = getFileContent(collections, requestPath);
     if (!request?.id) {
       vscode.window.showWarningMessage(`未找到请求: ${requestPath}`);
+    } else if (isRequestRunning(request.id)) {
+      await stop(request.id);
       return;
     }
-    await stop(request.id);
-    return;
   }
 
-  await stop(fallbackRequestId!);
+  if (fallbackRequestId) {
+    await stop(fallbackRequestId);
+  }
 }
 
 export function registerExploreCommands(

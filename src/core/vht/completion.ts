@@ -1,13 +1,12 @@
 import * as vscode from 'vscode';
-import { VhtParser } from './parser';
-import { findNodeAtPosition, VhtAST } from './types';
+import { findNodeAtPosition } from './types';
 import { getHeaderCompletions, isInHeaderSection } from './headerCompletion';
 import { getRequestLineCompletions, isInRequestLine } from './requestLineCompletion';
 import { getVariableCompletions } from './variableCompletion';
+import { DocumentAstCache } from './documentAstCache';
 
 export class VhtCompletionProvider implements vscode.CompletionItemProvider {
-    private readonly parser = new VhtParser();
-    private readonly astCache: Map<string, { version: number; ast: VhtAST }> = new Map();
+    constructor(private readonly astCache: DocumentAstCache = new DocumentAstCache()) {}
 
     public provideCompletionItems(document: vscode.TextDocument, position: vscode.Position): vscode.CompletionItem[] {
         const ast = this.getOrParseAst(document);
@@ -35,18 +34,7 @@ export class VhtCompletionProvider implements vscode.CompletionItemProvider {
         return [];
     }
 
-    private getOrParseAst(document: vscode.TextDocument): VhtAST {
-        const key = document.uri.toString();
-        const cached = this.astCache.get(key);
-        if (cached && cached.version === document.version) {
-            return cached.ast;
-        }
-
-        const ast = this.parser.parse(document.getText());
-        this.astCache.set(key, { version: document.version, ast });
-        if (this.astCache.size > 64) {
-            this.astCache.clear();
-        }
-        return ast;
+    private getOrParseAst(document: vscode.TextDocument) {
+        return this.astCache.get(document);
     }
 }
