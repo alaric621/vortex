@@ -3,15 +3,21 @@ import { AddressInfo } from "node:net";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const vscodeMocks = vi.hoisted(() => {
-  const channel = {
+  return {
+    showErrorMessage: vi.fn(() => Promise.resolve(undefined))
+  };
+});
+
+const panelMocks = vi.hoisted(() => {
+  const panel = {
     appendLine: vi.fn(),
-    show: vi.fn()
+    show: vi.fn(),
+    clear: vi.fn()
   };
 
   return {
-    channel,
-    createOutputChannel: vi.fn(() => channel),
-    showErrorMessage: vi.fn(() => Promise.resolve(undefined))
+    panel,
+    getClientPanel: vi.fn(() => panel)
   };
 });
 
@@ -23,9 +29,12 @@ vi.mock("vscode", () => ({
     }
   },
   window: {
-    createOutputChannel: vscodeMocks.createOutputChannel,
     showErrorMessage: vscodeMocks.showErrorMessage
   }
+}));
+
+vi.mock("../src/views/clientPanel", () => ({
+  getClientPanel: panelMocks.getClientPanel
 }));
 
 function listen(server: http.Server): Promise<number> {
@@ -40,9 +49,10 @@ describe("client runtime", () => {
   const servers: http.Server[] = [];
 
   beforeEach(() => {
-    vscodeMocks.channel.appendLine.mockReset();
-    vscodeMocks.channel.show.mockReset();
-    vscodeMocks.createOutputChannel.mockClear();
+    panelMocks.panel.appendLine.mockReset();
+    panelMocks.panel.show.mockReset();
+    panelMocks.panel.clear.mockReset();
+    panelMocks.getClientPanel.mockClear();
     vscodeMocks.showErrorMessage.mockClear();
     vi.resetModules();
     delete (globalThis as { WebSocket?: unknown }).WebSocket;
@@ -84,7 +94,7 @@ describe("client runtime", () => {
       });
 
       expect(seen[0]?.method).toBe(method);
-      expect(vscodeMocks.channel.appendLine).toHaveBeenCalledWith(`[done] ${method} ${method.toLowerCase()}`);
+      expect(panelMocks.panel.appendLine).toHaveBeenCalledWith(`[done] ${method} ${method.toLowerCase()}`);
     }
   );
 
@@ -140,7 +150,7 @@ describe("client runtime", () => {
       url: `http://127.0.0.1:${port}/tunnel`
     });
 
-    expect(vscodeMocks.channel.appendLine).toHaveBeenCalledWith("[done] CONNECT connect");
+    expect(panelMocks.panel.appendLine).toHaveBeenCalledWith("[done] CONNECT connect");
   });
 
   it.each(["SSE", "EVENTSOURCE"])("streams %s requests and can stop them", async method => {
@@ -169,7 +179,7 @@ describe("client runtime", () => {
     await sendPromise;
 
     expect(client.isClientBusy()).toBe(false);
-    expect(vscodeMocks.channel.appendLine).toHaveBeenCalledWith("event: data: hello");
+    expect(panelMocks.panel.appendLine).toHaveBeenCalledWith("event: data: hello");
   });
 
   it("opens websocket requests and stops them", async () => {
@@ -224,9 +234,9 @@ describe("client runtime", () => {
     await client.stop("req_ws");
     await sendPromise;
 
-    expect(vscodeMocks.channel.appendLine).toHaveBeenCalledWith("websocket: open");
-    expect(vscodeMocks.channel.appendLine).toHaveBeenCalledWith("websocket message: hello");
-    expect(vscodeMocks.channel.appendLine).toHaveBeenCalledWith("websocket message: echo:ping");
+    expect(panelMocks.panel.appendLine).toHaveBeenCalledWith("websocket: open");
+    expect(panelMocks.panel.appendLine).toHaveBeenCalledWith("websocket message: hello");
+    expect(panelMocks.panel.appendLine).toHaveBeenCalledWith("websocket message: echo:ping");
     expect(client.isClientBusy()).toBe(false);
   });
 

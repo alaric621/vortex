@@ -2,6 +2,7 @@ import * as http from "node:http";
 import * as https from "node:https";
 import * as vscode from "vscode";
 import { Collections } from "../../../typings/filesystem";
+import { ClientLogView, getClientPanel } from "../../views/clientPanel";
 
 export interface ClientRequestPayload extends Partial<Collections> {
   id: string;
@@ -68,15 +69,11 @@ const HTTP_METHODS = new Set<HttpLikeMethod>([
   "UNSUBSCRIBE"
 ]);
 
-let outputChannel: vscode.OutputChannel | undefined;
 const activeExecutions = new Map<string, { stop: () => void }>();
 const listeners = new Set<ClientListener>();
 
-export function getClientOutputChannel(): vscode.OutputChannel {
-  if (!outputChannel) {
-    outputChannel = vscode.window.createOutputChannel("Vortex Client");
-  }
-  return outputChannel;
+export function getClientOutputChannel(): ClientLogView {
+  return getClientPanel();
 }
 
 function getClientState(): ClientState {
@@ -106,7 +103,7 @@ function endExecution(id: string): void {
   emitState();
 }
 
-function appendDivider(channel: vscode.OutputChannel): void {
+function appendDivider(channel: ClientLogView): void {
   channel.appendLine("------------------------------------------------------------");
 }
 
@@ -134,13 +131,13 @@ function buildRequestLabel(param: ClientRequestPayload): string {
   return `${normalizeMethod(param.type)} ${param.name ?? param.id}`;
 }
 
-function appendRequestIntro(channel: vscode.OutputChannel, param: ClientRequestPayload): void {
+function appendRequestIntro(channel: ClientLogView, param: ClientRequestPayload): void {
   appendDivider(channel);
   channel.appendLine(`[send] ${buildRequestLabel(param)}`);
   channel.appendLine(`url: ${param.url ?? ""}`);
 }
 
-function appendRequestHeaders(channel: vscode.OutputChannel, headers: Record<string, string> | undefined): void {
+function appendRequestHeaders(channel: ClientLogView, headers: Record<string, string> | undefined): void {
   const pairs = Object.entries(headers ?? {});
   if (pairs.length === 0) {
     return;
@@ -152,7 +149,7 @@ function appendRequestHeaders(channel: vscode.OutputChannel, headers: Record<str
   }
 }
 
-function appendRequestBody(channel: vscode.OutputChannel, body: string | undefined): void {
+function appendRequestBody(channel: ClientLogView, body: string | undefined): void {
   if (!body) {
     return;
   }
@@ -169,7 +166,7 @@ function ensureUrl(input: string | undefined): URL {
   return new URL(input);
 }
 
-function sendHttpRequest(param: ClientRequestPayload, channel: vscode.OutputChannel, runtimeResponse: ClientRunResult): RequestExecution {
+function sendHttpRequest(param: ClientRequestPayload, channel: ClientLogView, runtimeResponse: ClientRunResult): RequestExecution {
   const url = ensureUrl(param.url);
   const client = url.protocol === "https:" ? https : http;
   const body = param.body ?? "";
@@ -235,7 +232,7 @@ function headersToRecord(headers: Headers): Record<string, string> {
   return output;
 }
 
-async function consumeSseStream(response: Response, channel: vscode.OutputChannel, runtimeResponse: ClientRunResult): Promise<void> {
+async function consumeSseStream(response: Response, channel: ClientLogView, runtimeResponse: ClientRunResult): Promise<void> {
   if (!response.body) {
     return;
   }
@@ -270,7 +267,7 @@ async function consumeSseStream(response: Response, channel: vscode.OutputChanne
   }
 }
 
-function sendSseRequest(param: ClientRequestPayload, channel: vscode.OutputChannel, runtimeResponse: ClientRunResult): RequestExecution {
+function sendSseRequest(param: ClientRequestPayload, channel: ClientLogView, runtimeResponse: ClientRunResult): RequestExecution {
   const controller = new AbortController();
   const url = ensureUrl(param.url);
   const headers = {
@@ -309,7 +306,7 @@ function normalizeWebSocketUrl(input: string | undefined): string {
   return url.toString();
 }
 
-function sendWebSocketRequest(param: ClientRequestPayload, channel: vscode.OutputChannel, runtimeResponse: ClientRunResult): RequestExecution {
+function sendWebSocketRequest(param: ClientRequestPayload, channel: ClientLogView, runtimeResponse: ClientRunResult): RequestExecution {
   const WebSocketCtor = (globalThis as { WebSocket?: new (url: string) => RuntimeWebSocket }).WebSocket;
   if (!WebSocketCtor) {
     throw new Error("Global WebSocket is not available in this runtime.");
@@ -363,7 +360,7 @@ function sendWebSocketRequest(param: ClientRequestPayload, channel: vscode.Outpu
   };
 }
 
-function createExecution(param: ClientRequestPayload, channel: vscode.OutputChannel, runtimeResponse: ClientRunResult): RequestExecution {
+function createExecution(param: ClientRequestPayload, channel: ClientLogView, runtimeResponse: ClientRunResult): RequestExecution {
   const method = normalizeMethod(param.type);
   if (method === "WEBSOCKET") {
     return sendWebSocketRequest(param, channel, runtimeResponse);

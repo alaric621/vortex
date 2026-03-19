@@ -4,11 +4,7 @@ const vscodeMocks = vi.hoisted(() => ({
   registerCommandMock: vi.fn(),
   executeCommandMock: vi.fn(),
   showInputBoxMock: vi.fn(),
-  showWarningMessageMock: vi.fn(),
-  createOutputChannelMock: vi.fn(() => ({
-    appendLine: vi.fn(),
-    show: vi.fn()
-  }))
+  showWarningMessageMock: vi.fn()
 }));
 
 vi.mock("vscode", () => {
@@ -45,7 +41,6 @@ vi.mock("vscode", () => {
     window: {
       showInputBox: vscodeMocks.showInputBoxMock,
       showWarningMessage: vscodeMocks.showWarningMessageMock,
-      createOutputChannel: vscodeMocks.createOutputChannelMock,
       activeTextEditor: undefined
     }
   };
@@ -124,7 +119,6 @@ describe("registerExploreCommands", () => {
     vscodeMocks.executeCommandMock.mockReset();
     vscodeMocks.showInputBoxMock.mockReset();
     vscodeMocks.showWarningMessageMock.mockReset();
-    vscodeMocks.createOutputChannelMock.mockClear();
     clientMocks.sendMock.mockReset();
     clientMocks.stopMock.mockReset();
     clientMocks.isRequestRunningMock.mockReset();
