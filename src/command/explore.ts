@@ -1,5 +1,5 @@
 import * as vscode from "vscode";
-import { ClientRunResult, getActiveRequestId, isRequestRunning, send, stop } from "../core/client";
+import { ClientRunResult, getActiveRequestId, getClientOutputChannel, isRequestRunning, send, stop } from "../core/client";
 import { resolveHookRequest, runHook } from "../core/runHook";
 import { collections, createItem, getFileContent, getPathType } from "../core/filesystem/context";
 import { basenamePath, dirnamePath, ensureRequestPathWithoutExtension, joinPath, normalizePath } from "../core/filesystem/path-utils";
@@ -11,15 +11,6 @@ interface Refreshable {
 interface WritableFileSystemProvider {
   delete(uri: vscode.Uri, options: { recursive: boolean }): void;
   rename(oldUri: vscode.Uri, newUri: vscode.Uri): void;
-}
-
-let hookOutputChannel: vscode.OutputChannel | undefined;
-
-function getHookOutputChannel(): vscode.OutputChannel {
-  if (!hookOutputChannel) {
-    hookOutputChannel = vscode.window.createOutputChannel("Vortex Hooks");
-  }
-  return hookOutputChannel;
 }
 
 function isRequestUri(uri: vscode.Uri | undefined): uri is vscode.Uri {
@@ -201,7 +192,7 @@ async function sendRequestCommand(target?: vscode.TreeItem): Promise<void> {
     id: request.id,
     documentUri: resourceUri
   });
-  const output = getHookOutputChannel();
+  const output = getClientOutputChannel();
   const response: ClientRunResult = {
     events: []
   };

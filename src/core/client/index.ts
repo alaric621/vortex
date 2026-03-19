@@ -72,7 +72,7 @@ let outputChannel: vscode.OutputChannel | undefined;
 const activeExecutions = new Map<string, { stop: () => void }>();
 const listeners = new Set<ClientListener>();
 
-function getOutputChannel(): vscode.OutputChannel {
+export function getClientOutputChannel(): vscode.OutputChannel {
   if (!outputChannel) {
     outputChannel = vscode.window.createOutputChannel("Vortex Client");
   }
@@ -399,7 +399,7 @@ export async function send(param: ClientRequestPayload): Promise<ClientRunResult
     throw new Error(`Request is already running: ${param.id}`);
   }
 
-  const channel = getOutputChannel();
+  const channel = getClientOutputChannel();
   const resolved = resolvePayload(param);
   const runtimeResponse: ClientRunResult = {
     events: []

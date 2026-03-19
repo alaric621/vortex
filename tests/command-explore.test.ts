@@ -55,7 +55,11 @@ const clientMocks = vi.hoisted(() => ({
   sendMock: vi.fn(),
   stopMock: vi.fn(),
   isRequestRunningMock: vi.fn(() => false),
-  getActiveRequestIdMock: vi.fn<() => string | undefined>(() => undefined)
+  getActiveRequestIdMock: vi.fn<() => string | undefined>(() => undefined),
+  getClientOutputChannelMock: vi.fn(() => ({
+    appendLine: vi.fn(),
+    show: vi.fn()
+  }))
 }));
 const hookMocks = vi.hoisted(() => ({
   resolveHookRequestMock: vi.fn((request: unknown) => request),
@@ -66,7 +70,8 @@ vi.mock("../src/core/client", () => ({
   send: clientMocks.sendMock,
   stop: clientMocks.stopMock,
   isRequestRunning: clientMocks.isRequestRunningMock,
-  getActiveRequestId: clientMocks.getActiveRequestIdMock
+  getActiveRequestId: clientMocks.getActiveRequestIdMock,
+  getClientOutputChannel: clientMocks.getClientOutputChannelMock
 }));
 
 vi.mock("../src/core/runHook", () => ({
@@ -126,6 +131,11 @@ describe("registerExploreCommands", () => {
     clientMocks.isRequestRunningMock.mockReturnValue(false);
     clientMocks.getActiveRequestIdMock.mockReset();
     clientMocks.getActiveRequestIdMock.mockReturnValue(undefined);
+    clientMocks.getClientOutputChannelMock.mockReset();
+    clientMocks.getClientOutputChannelMock.mockReturnValue({
+      appendLine: vi.fn(),
+      show: vi.fn()
+    });
     hookMocks.resolveHookRequestMock.mockReset();
     hookMocks.resolveHookRequestMock.mockImplementation((request: unknown) => request);
     hookMocks.runHookMock.mockReset();
@@ -257,6 +267,7 @@ describe("registerExploreCommands", () => {
       id: "req_team_users",
       name: "users"
     }));
+    expect(clientMocks.getClientOutputChannelMock).toHaveBeenCalledTimes(1);
     expect(hookMocks.runHookMock).toHaveBeenNthCalledWith(
       2,
       "",
