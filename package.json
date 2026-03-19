@@ -69,6 +69,11 @@
           "command": "vortex.request.refresh",
           "when": "view == vortex-explorer",
           "group": "navigation@2"
+        },
+        {
+          "command": "vortex.request.stop",
+          "when": "view == vortex-explorer && vortex.client.busy",
+          "group": "navigation@3"
         }
       ],
       "view/item/context": [
@@ -79,14 +84,24 @@
         },
         {
           "command": "vortex.request.send",
-          "when": "view == vortex-explorer && viewItem == vortex.requestNode",
+          "when": "view == vortex-explorer && viewItem == vortex.requestNode && !vortex.client.busy",
+          "group": "inline@1"
+        },
+        {
+          "command": "vortex.request.stop",
+          "when": "view == vortex-explorer && viewItem == vortex.requestNode && vortex.client.busy",
           "group": "inline@1"
         }
       ],
       "editor/title": [
         {
           "command": "vortex.request.send",
-          "when": "resourceExtname == .vht",
+          "when": "resourceExtname == .vht && !vortex.client.busy",
+          "group": "navigation@1"
+        },
+        {
+          "command": "vortex.request.stop",
+          "when": "resourceExtname == .vht && vortex.client.busy",
           "group": "navigation@1"
         }
       ]
@@ -155,7 +170,7 @@
         "command": "vortex.request.send",
         "key": "enter",
         "mac": "enter",
-        "when": "focusedView == vortex-explorer && listFocus && !inputFocus && viewItem == vortex.requestNode"
+        "when": "focusedView == vortex-explorer && listFocus && !inputFocus && viewItem == vortex.requestNode && !vortex.client.busy"
       },
       {
         "command": "vortex.request.refresh",
@@ -167,13 +182,13 @@
         "command": "vortex.request.send",
         "key": "ctrl+enter",
         "mac": "cmd+enter",
-        "when": "editorTextFocus && resourceExtname == .vht && vim.mode == 'Normal'"
+        "when": "editorTextFocus && resourceExtname == .vht && vim.mode == 'Normal' && !vortex.client.busy"
       },
       {
         "command": "vortex.request.stop",
         "key": "shift+escape",
         "mac": "shift+escape",
-        "when": "editorTextFocus && resourceExtname == .vht"
+        "when": "editorTextFocus && resourceExtname == .vht && vortex.client.busy"
       }
     ]
   },

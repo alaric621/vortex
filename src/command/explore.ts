@@ -1,5 +1,5 @@
 import * as vscode from "vscode";
-import { send, stop } from "../core/client";
+import { getActiveRequestId, isClientBusy, send, stop } from "../core/client";
 import { collections, createItem, getFileContent, getPathType } from "../core/filesystem/context";
 import { basenamePath, dirnamePath, ensureRequestPathWithoutExtension, joinPath, normalizePath } from "../core/filesystem/path-utils";
 
@@ -40,6 +40,23 @@ function getFocusedRequestUri(): vscode.Uri | undefined {
 
 function getResourceUri(target?: vscode.TreeItem): vscode.Uri | undefined {
   return target?.resourceUri ?? getFocusedRequestUri();
+}
+
+async function saveRequestIfDirty(resourceUri: vscode.Uri): Promise<boolean> {
+  const editor = vscode.window.activeTextEditor;
+  if (!editor) {
+    return true;
+  }
+
+  if (editor.document.uri.toString() !== resourceUri.toString()) {
+    return true;
+  }
+
+  if (!editor.document.isDirty) {
+    return true;
+  }
+
+  return editor.document.save();
 }
 
 function getParentFolderPath(uri: vscode.Uri): string {
@@ -152,6 +169,16 @@ async function sendRequestCommand(target?: vscode.TreeItem): Promise<void> {
     return;
   }
 
+  if (isClientBusy()) {
+    vscode.window.showWarningMessage("A request is already running. Stop it before sending another one.");
+    return;
+  }
+
+  if (!await saveRequestIfDirty(resourceUri)) {
+    vscode.window.showWarningMessage("Failed to save the current request before sending.");
+    return;
+  }
+
   const requestPath = ensureRequestPathWithoutExtension(resourceUri.path);
   const request = getFileContent(collections, requestPath);
   if (!request) {
@@ -159,26 +186,37 @@ async function sendRequestCommand(target?: vscode.TreeItem): Promise<void> {
     return;
   }
 
-  await send({
-    ...request,
-    id: request.id
-  });
+  try {
+    await send({
+      ...request,
+      id: request.id,
+      documentUri: resourceUri
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    vscode.window.showWarningMessage(message);
+  }
 }
 
 async function stopRequestCommand(target?: vscode.TreeItem): Promise<void> {
   const resourceUri = getResourceUri(target);
-  if (!resourceUri) {
+  const fallbackRequestId = getActiveRequestId();
+  if (!resourceUri && !fallbackRequestId) {
     return;
   }
 
-  const requestPath = ensureRequestPathWithoutExtension(resourceUri.path);
-  const request = getFileContent(collections, requestPath);
-  if (!request?.id) {
-    vscode.window.showWarningMessage(`未找到请求: ${requestPath}`);
+  if (resourceUri) {
+    const requestPath = ensureRequestPathWithoutExtension(resourceUri.path);
+    const request = getFileContent(collections, requestPath);
+    if (!request?.id) {
+      vscode.window.showWarningMessage(`未找到请求: ${requestPath}`);
+      return;
+    }
+    await stop(request.id);
     return;
   }
 
-  await stop(request.id);
+  await stop(fallbackRequestId!);
 }
 
 export function registerExploreCommands(

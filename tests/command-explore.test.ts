@@ -48,12 +48,16 @@ vi.mock("vscode", () => {
 
 const clientMocks = vi.hoisted(() => ({
   sendMock: vi.fn(),
-  stopMock: vi.fn()
+  stopMock: vi.fn(),
+  isClientBusyMock: vi.fn(() => false),
+  getActiveRequestIdMock: vi.fn(() => undefined)
 }));
 
 vi.mock("../src/core/client", () => ({
   send: clientMocks.sendMock,
-  stop: clientMocks.stopMock
+  stop: clientMocks.stopMock,
+  isClientBusy: clientMocks.isClientBusyMock,
+  getActiveRequestId: clientMocks.getActiveRequestIdMock
 }));
 
 import * as vscode from "vscode";
@@ -103,9 +107,14 @@ describe("registerExploreCommands", () => {
     vscodeMocks.showWarningMessageMock.mockReset();
     clientMocks.sendMock.mockReset();
     clientMocks.stopMock.mockReset();
+    clientMocks.isClientBusyMock.mockReset();
+    clientMocks.isClientBusyMock.mockReturnValue(false);
+    clientMocks.getActiveRequestIdMock.mockReset();
+    clientMocks.getActiveRequestIdMock.mockReturnValue(undefined);
     fsProvider.rename.mockReset();
     fsProvider.delete.mockReset();
     explorerProvider.refresh.mockReset();
+    (vscode.window as any).activeTextEditor = undefined;
     collections.length = 0;
     collections.push(...seedCollections.map(item => ({
       ...item,
@@ -199,6 +208,13 @@ describe("registerExploreCommands", () => {
   });
 
   it("sends the selected request payload", async () => {
+    (vscode.window as any).activeTextEditor = {
+      document: {
+        uri: vscode.Uri.from({ scheme: "vortex-fs", authority: "request", path: "/team/users.vht" }),
+        isDirty: true,
+        save: vi.fn().mockResolvedValue(true)
+      }
+    };
     const sendCommand = getHandler("vortex.request.send");
 
     await sendCommand({
@@ -211,12 +227,35 @@ describe("registerExploreCommands", () => {
     }));
   });
 
+  it("blocks send when another request is already running", async () => {
+    clientMocks.isClientBusyMock.mockReturnValue(true);
+    const sendCommand = getHandler("vortex.request.send");
+
+    await sendCommand({
+      resourceUri: vscode.Uri.from({ scheme: "vortex-fs", authority: "request", path: "/team/users.vht" })
+    });
+
+    expect(clientMocks.sendMock).not.toHaveBeenCalled();
+    expect(vscodeMocks.showWarningMessageMock).toHaveBeenCalledWith(
+      "A request is already running. Stop it before sending another one."
+    );
+  });
+
   it("stops the selected request by id", async () => {
     const stopCommand = getHandler("vortex.request.stop");
 
     await stopCommand({
       resourceUri: vscode.Uri.from({ scheme: "vortex-fs", authority: "request", path: "/team/users.vht" })
     });
+
+    expect(clientMocks.stopMock).toHaveBeenCalledWith("req_team_users");
+  });
+
+  it("stops the active request when no resource is selected", async () => {
+    clientMocks.getActiveRequestIdMock.mockReturnValue("req_team_users");
+    const stopCommand = getHandler("vortex.request.stop");
+
+    await stopCommand();
 
     expect(clientMocks.stopMock).toHaveBeenCalledWith("req_team_users");
   });
