@@ -16,7 +16,7 @@ class ClientPanelViewProvider implements vscode.WebviewViewProvider, ClientLogVi
   resolveWebviewView(webviewView: vscode.WebviewView): void {
     this.view = webviewView;
     webviewView.webview.options = {
-      enableScripts: false
+      enableScripts: true
     };
     webviewView.onDidDispose(() => {
       if (this.view === webviewView) {
@@ -55,7 +55,11 @@ class ClientPanelViewProvider implements vscode.WebviewViewProvider, ClientLogVi
       return;
     }
 
-    const body = this.lines.map(line => renderLine(line)).join("");
+    const entries = buildEntries(this.lines);
+    const body = entries.length > 0
+      ? entries.map(entry => renderEntry(entry)).join("")
+      : `<div class="empty">No request logs yet.</div>`;
+    const copyPayload = escapeJsString(this.lines.join("\n"));
     this.view.webview.html = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -80,13 +84,77 @@ class ClientPanelViewProvider implements vscode.WebviewViewProvider, ClientLogVi
       color: var(--fg);
       font: 12px/1.6 var(--vscode-editor-font-family, ui-monospace, monospace);
     }
+    .toolbar {
+      position: sticky;
+      top: 0;
+      z-index: 1;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--border);
+      background: color-mix(in srgb, var(--bg) 92%, var(--accent) 8%);
+      backdrop-filter: blur(6px);
+    }
+    .toolbar-title {
+      font-weight: 700;
+      letter-spacing: 0.02em;
+    }
+    .toolbar-meta {
+      color: var(--muted);
+      font-size: 11px;
+    }
+    .toolbar-actions {
+      display: flex;
+      gap: 8px;
+    }
+    button {
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--fg);
+      border-radius: 8px;
+      padding: 5px 10px;
+      font: inherit;
+      cursor: pointer;
+    }
+    button:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
     .log {
       padding: 12px 14px 20px;
+      display: grid;
+      gap: 12px;
+    }
+    .entry {
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      background: color-mix(in srgb, var(--bg) 94%, var(--accent) 6%);
+    }
+    .entry-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 8px 12px;
+      border-bottom: 1px solid var(--border);
+      background: color-mix(in srgb, var(--bg) 86%, var(--accent) 14%);
+    }
+    .entry-title {
+      font-weight: 700;
+      color: var(--accent);
+    }
+    .entry-duration {
+      color: var(--muted);
+    }
+    .entry-body {
+      padding: 8px 12px 12px;
     }
     .line {
       white-space: pre-wrap;
       word-break: break-word;
-      padding: 1px 0;
+      padding: 2px 0;
     }
     .divider {
       color: var(--border);
@@ -115,10 +183,51 @@ class ClientPanelViewProvider implements vscode.WebviewViewProvider, ClientLogVi
     .meta, .header-entry {
       color: var(--muted);
     }
+    .duration {
+      color: var(--muted);
+      font-weight: 600;
+    }
+    .plain {
+      color: var(--fg);
+    }
+    .empty {
+      color: var(--muted);
+      border: 1px dashed var(--border);
+      border-radius: 12px;
+      padding: 24px;
+      text-align: center;
+    }
   </style>
 </head>
 <body>
+  <div class="toolbar">
+    <div>
+      <div class="toolbar-title">Client Log</div>
+      <div class="toolbar-meta">${this.lines.length} lines</div>
+    </div>
+    <div class="toolbar-actions">
+      <button type="button" id="copyAll">Copy All</button>
+    </div>
+  </div>
   <div class="log">${body}</div>
+  <script>
+    const copyText = "${copyPayload}";
+    const button = document.getElementById("copyAll");
+    button?.addEventListener("click", async () => {
+      try {
+        await navigator.clipboard.writeText(copyText);
+        button.textContent = "Copied";
+        setTimeout(() => {
+          button.textContent = "Copy All";
+        }, 1200);
+      } catch {
+        button.textContent = "Copy Failed";
+        setTimeout(() => {
+          button.textContent = "Copy All";
+        }, 1200);
+      }
+    });
+  </script>
 </body>
 </html>`;
   }
@@ -144,6 +253,17 @@ function renderLine(line: string): string {
   return `<div class="line ${classifyLine(line)}">${escapeHtml(line)}</div>`;
 }
 
+function renderEntry(entry: { title: string; duration?: string; lines: string[] }): string {
+  const body = entry.lines.map(line => renderLine(line)).join("");
+  return `<section class="entry">
+    <div class="entry-head">
+      <div class="entry-title">${escapeHtml(entry.title)}</div>
+      <div class="entry-duration">${escapeHtml(entry.duration ?? "")}</div>
+    </div>
+    <div class="entry-body">${body}</div>
+  </section>`;
+}
+
 function classifyLine(line: string): string {
   if (/^-{20,}$/.test(line)) return "divider";
   if (line.startsWith("[send]")) return "send";
@@ -152,6 +272,7 @@ function classifyLine(line: string): string {
   if (line.startsWith("[hook-error]")) return "hook-error";
   if (line.startsWith("[stopped]")) return "stopped";
   if (line.startsWith("status:")) return "status";
+  if (line.startsWith("duration:")) return "duration";
   if (line.startsWith("url:")) return "meta";
   if (line === "headers:" || line === "body:" || line === "response headers:" || line === "response body:") return "section";
   if (line.startsWith("  ")) return "header-entry";
@@ -166,4 +287,45 @@ function escapeHtml(input: string): string {
     .replaceAll("&", "&amp;")
     .replaceAll("<", "&lt;")
     .replaceAll(">", "&gt;");
+}
+
+function escapeJsString(input: string): string {
+  return input
+    .replaceAll("\\", "\\\\")
+    .replaceAll("\"", "\\\"")
+    .replaceAll("\n", "\\n")
+    .replaceAll("\r", "\\r")
+    .replaceAll("</script>", "<\\/script>");
+}
+
+function buildEntries(lines: string[]): Array<{ title: string; duration?: string; lines: string[] }> {
+  const entries: Array<{ title: string; duration?: string; lines: string[] }> = [];
+  let current: string[] = [];
+
+  const flush = (): void => {
+    const trimmed = current.filter(line => line.trim().length > 0);
+    if (trimmed.length === 0) {
+      current = [];
+      return;
+    }
+
+    const sendLine = trimmed.find(line => line.startsWith("[send]")) ?? trimmed[0];
+    const durationLine = trimmed.find(line => line.startsWith("duration:"));
+    entries.push({
+      title: sendLine,
+      duration: durationLine,
+      lines: trimmed.filter(line => line !== sendLine && line !== durationLine)
+    });
+    current = [];
+  };
+
+  for (const line of lines) {
+    if (/^-{20,}$/.test(line)) {
+      flush();
+      continue;
+    }
+    current.push(line);
+  }
+  flush();
+  return entries.reverse();
 }

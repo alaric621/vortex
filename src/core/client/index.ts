@@ -396,6 +396,7 @@ export async function send(param: ClientRequestPayload): Promise<ClientRunResult
     throw new Error(`Request is already running: ${param.id}`);
   }
 
+  const startedAt = Date.now();
   const channel = getClientOutputChannel();
   const resolved = resolvePayload(param);
   const runtimeResponse: ClientRunResult = {
@@ -411,11 +412,13 @@ export async function send(param: ClientRequestPayload): Promise<ClientRunResult
     appendRequestHeaders(channel, resolved.headers);
     appendRequestBody(channel, resolved.body);
     await execution.completed;
+    channel.appendLine(`duration: ${Date.now() - startedAt} ms`);
     channel.appendLine(`[done] ${buildRequestLabel(resolved)}`);
     return runtimeResponse;
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     runtimeResponse.error = message;
+    channel.appendLine(`duration: ${Date.now() - startedAt} ms`);
     if (message !== "The operation was aborted" && message !== "Stopped by user.") {
       channel.appendLine(`[error] ${buildRequestLabel(resolved)}: ${message}`);
       void vscode.window.showErrorMessage(`Request failed: ${message}`);

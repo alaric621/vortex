@@ -40,12 +40,15 @@ describe("client panel", () => {
 
     panel.appendLine("[send] GET hello");
     panel.appendLine("status: 200 OK");
+    panel.appendLine("duration: 42 ms");
     panel.appendLine("[error] GET hello: failed");
     panel.show();
 
-    expect(vscodeState.view.webview.html).toContain('class="line send"');
+    expect(vscodeState.view.webview.html).toContain('class="entry-title">[send] GET hello');
     expect(vscodeState.view.webview.html).toContain('class="line status"');
+    expect(vscodeState.view.webview.html).toContain('class="entry-duration">duration: 42 ms');
     expect(vscodeState.view.webview.html).toContain('class="line error"');
+    expect(vscodeState.view.webview.html).toContain("Copy All");
     expect(vscodeState.executeCommand).toHaveBeenCalledWith("workbench.view.extension.vortex-panel");
     expect(vscodeState.view.show).toHaveBeenCalled();
   });
