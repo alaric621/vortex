@@ -7,6 +7,10 @@ import { VhtDiagnostics } from './core/vht/diagnostics';
 import { VhtCompletionProvider } from './core/vht/completion';
 import { VariableDecorator } from './core/vht/variableDecorator';
 import { DocumentAstCache } from './core/vht/documentAstCache';
+import { onDidChangeVhtVariables } from "./env";
+import { prepareRuntimeVariables } from "./core/runtimeVariables";
+import { collections, getFileContent } from "./core/filesystem/context";
+import { ensureRequestPathWithoutExtension } from "./core/filesystem/path-utils";
 
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
   const scheme = "vortex-fs";
@@ -51,6 +55,23 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     vscode.workspace.onDidCloseTextDocument(document => {
       diagnosticManager.clear(document);
     }),
+    vscode.workspace.onDidSaveTextDocument(async document => {
+      if (document.languageId !== "vht") {
+        return;
+      }
+
+      const request = getFileContent(collections, ensureRequestPathWithoutExtension(document.uri.path));
+      if (!request) {
+        return;
+      }
+
+      try {
+        await prepareRuntimeVariables(document.uri, request);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        vscode.window.showWarningMessage(message);
+      }
+    }),
     vscode.window.onDidChangeTextEditorSelection(e => {
       if (e.textEditor.document.languageId !== 'vht') return;
       variableDecorator.update(e.textEditor);
@@ -83,12 +104,26 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     void applyClientContext();
     explorerProvider.refresh();
   });
+  const variableStateSubscription = onDidChangeVhtVariables(documentUri => {
+    const editor = vscode.window.activeTextEditor;
+    if (!editor) {
+      return;
+    }
+
+    if (documentUri && editor.document.uri.toString() !== documentUri.toString()) {
+      return;
+    }
+
+    diagnosticManager.update(editor.document);
+    variableDecorator.update(editor);
+  });
 
   context.subscriptions.push(
     exploretreeView,
     completionProvider,
     variableDecorator,
     clientStateSubscription,
+    variableStateSubscription,
     vscode.workspace.registerFileSystemProvider(scheme, fsProvider),
     ...exploreCommands,
     vscode.commands.registerCommand("vortex.request.refresh", async () => {

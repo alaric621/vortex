@@ -72,7 +72,8 @@ vi.mock("vscode", () => {
 });
 
 import * as vscode from "vscode";
-import { getVhtVariables } from "../src/env";
+import { clearRuntimeVhtVariables, createMutableVhtVariables, getVhtVariables, setRuntimeVhtVariables } from "../src/env";
+import { prepareRuntimeVariables } from "../src/core/runtimeVariables";
 import { VhtParser } from "../src/core/vht/parser";
 import { getVariableCompletions } from "../src/core/vht/variableCompletion";
 import { collectDiagnosticIssues } from "../src/core/vht/diagnosticsRules";
@@ -89,6 +90,7 @@ describe("workspace environment variables", () => {
   afterEach(() => {
     fs.rmSync(workspaceRoot, { recursive: true, force: true });
     vscodeState.workspaceFolders = [];
+    clearRuntimeVhtVariables();
     delete (globalThis as { __vscode?: typeof vscode }).__vscode;
   });
 
@@ -182,5 +184,56 @@ describe("workspace environment variables", () => {
     );
 
     expect(issues.some(issue => issue.code === "unknown-variable-path")).toBe(false);
+  });
+
+  it("prefers runtime variables when present", () => {
+    fs.writeFileSync(
+      path.join(workspaceRoot, "vortex.json"),
+      JSON.stringify({
+        variables: {
+          client: {
+            name: "from-config"
+          }
+        }
+      }),
+      "utf8"
+    );
+
+    const documentUri = vscode.Uri.file(path.join(workspaceRoot, "request.vht"));
+    const runtimeVariables = createMutableVhtVariables(documentUri);
+    (runtimeVariables.client as Record<string, unknown>).name = "hello";
+    setRuntimeVhtVariables(documentUri, runtimeVariables);
+
+    expect(getVhtVariables(documentUri)).toEqual({
+      client: {
+        name: "hello"
+      }
+    });
+  });
+
+  it("applies pre hook variables into runtime state", async () => {
+    const documentUri = vscode.Uri.file(path.join(workspaceRoot, "request.vht"));
+
+    const variables = await prepareRuntimeVariables(documentUri, {
+      id: "req_preview",
+      type: "GET",
+      name: "preview",
+      folder: "/",
+      url: "https://example.com",
+      headers: {},
+      body: "",
+      scripts: {
+        pre: "client.name = 'hello'; client.client = { token: 'preview-token' };"
+      }
+    });
+
+    expect(variables).toEqual({
+      name: "hello",
+      client: {
+        token: "preview-token"
+      },
+      env: "dev"
+    });
+    expect(getVhtVariables(documentUri)).toEqual(variables);
   });
 });

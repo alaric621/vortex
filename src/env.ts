@@ -27,6 +27,9 @@ export interface VortexWorkspaceConfig {
     environments?: Record<string, Record<string, unknown>>;
 }
 
+const runtimeVariableOverrides = new Map<string, Record<string, unknown>>();
+const runtimeVariableListeners = new Set<(documentUri?: vscode.Uri) => void>();
+
 function getVSCodeModule(): typeof vscode | undefined {
     const globalModule = (globalThis as { __vscode?: typeof vscode }).__vscode;
     if (globalModule) {
@@ -79,7 +82,7 @@ function loadWorkspaceConfig(documentUri?: vscode.Uri): VortexWorkspaceConfig | 
     return undefined;
 }
 
-export function getVhtVariables(documentUri?: vscode.Uri): Record<string, unknown> {
+function getBaseVhtVariables(documentUri?: vscode.Uri): Record<string, unknown> {
     const config = loadWorkspaceConfig(documentUri);
     if (!config) {
         return vhtMockVariables;
@@ -101,4 +104,75 @@ export function getVhtVariables(documentUri?: vscode.Uri): Record<string, unknow
     }
 
     return vhtMockVariables;
+}
+
+function toRuntimeKey(documentUri?: vscode.Uri): string | undefined {
+    return documentUri?.toString();
+}
+
+function emitRuntimeVariableChange(documentUri?: vscode.Uri): void {
+    for (const listener of runtimeVariableListeners) {
+        listener(documentUri);
+    }
+}
+
+function cloneValue<T>(value: T): T {
+    if (Array.isArray(value)) {
+        return value.map(item => cloneValue(item)) as T;
+    }
+
+    if (value && typeof value === "object") {
+        return Object.fromEntries(
+            Object.entries(value as Record<string, unknown>).map(([key, item]) => [key, cloneValue(item)])
+        ) as T;
+    }
+
+    return value;
+}
+
+export function getVhtVariables(documentUri?: vscode.Uri): Record<string, unknown> {
+    const key = toRuntimeKey(documentUri);
+    if (key) {
+        const runtimeVariables = runtimeVariableOverrides.get(key);
+        if (runtimeVariables) {
+            return runtimeVariables;
+        }
+    }
+
+    return getBaseVhtVariables(documentUri);
+}
+
+export function createMutableVhtVariables(documentUri?: vscode.Uri): Record<string, unknown> {
+    return cloneValue(getVhtVariables(documentUri));
+}
+
+export function createMutableBaseVhtVariables(documentUri?: vscode.Uri): Record<string, unknown> {
+    return cloneValue(getBaseVhtVariables(documentUri));
+}
+
+export function setRuntimeVhtVariables(documentUri: vscode.Uri, variables: Record<string, unknown>): void {
+    runtimeVariableOverrides.set(documentUri.toString(), variables);
+    emitRuntimeVariableChange(documentUri);
+}
+
+export function clearRuntimeVhtVariables(documentUri?: vscode.Uri): void {
+    const key = toRuntimeKey(documentUri);
+    if (!key) {
+        runtimeVariableOverrides.clear();
+        emitRuntimeVariableChange();
+        return;
+    }
+
+    if (runtimeVariableOverrides.delete(key)) {
+        emitRuntimeVariableChange(documentUri);
+    }
+}
+
+export function onDidChangeVhtVariables(listener: (documentUri?: vscode.Uri) => void): { dispose(): void } {
+    runtimeVariableListeners.add(listener);
+    return {
+        dispose(): void {
+            runtimeVariableListeners.delete(listener);
+        }
+    };
 }

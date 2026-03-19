@@ -1,8 +1,10 @@
 import * as vscode from "vscode";
-import { ClientRunResult, getActiveRequestId, getClientOutputChannel, isRequestRunning, send, stop } from "../core/client";
-import { resolveHookRequest, runHook } from "../core/runHook";
+import clientHttp, { getActiveRequestId, isRequestRunning, stop } from "../core/client";
+import { runHookStrict } from "../core/runHook";
+import { prepareRuntimeVariables } from "../core/runtimeVariables";
 import { collections, createItem, getFileContent, getPathType } from "../core/filesystem/context";
 import { basenamePath, dirnamePath, ensureRequestPathWithoutExtension, joinPath, normalizePath } from "../core/filesystem/path-utils";
+import { setRuntimeVhtVariables } from "../env";
 
 interface Refreshable {
   refresh(): void;
@@ -11,14 +13,6 @@ interface Refreshable {
 interface WritableFileSystemProvider {
   delete(uri: vscode.Uri, options: { recursive: boolean }): void;
   rename(oldUri: vscode.Uri, newUri: vscode.Uri): void;
-}
-
-function formatLogClock(date: Date): string {
-  const hh = String(date.getHours()).padStart(2, "0");
-  const mm = String(date.getMinutes()).padStart(2, "0");
-  const ss = String(date.getSeconds()).padStart(2, "0");
-  const ms = String(date.getMilliseconds()).padStart(3, "0");
-  return `${hh}:${mm}:${ss}.${ms}`;
 }
 
 function isRequestUri(uri: vscode.Uri | undefined): uri is vscode.Uri {
@@ -184,50 +178,34 @@ async function sendRequestCommand(target?: vscode.TreeItem): Promise<void> {
   }
 
   const requestPath = ensureRequestPathWithoutExtension(resourceUri.path);
-  const request = getFileContent(collections, requestPath);
-  if (!request) {
+  const requsetConfig = getFileContent(collections, requestPath);
+
+  if (!requsetConfig) {
     vscode.window.showWarningMessage(`未找到请求: ${requestPath}`);
     return;
   }
 
-  if (isRequestRunning(request.id)) {
-    vscode.window.showWarningMessage(`Request is already running: ${request.id}`);
+  if (isRequestRunning(requsetConfig.id)) {
+    vscode.window.showWarningMessage(`Request is already running: ${requsetConfig.id}`);
     return;
   }
 
-  const resolvedRequest = resolveHookRequest({
-    ...request,
-    id: request.id,
-    documentUri: resourceUri
-  });
-  const output = getClientOutputChannel();
-  const response: ClientRunResult = {
-    events: []
-  };
-  const hookContext = {
-    request: resolvedRequest,
-    response,
-    variables: {
-      request: resolvedRequest,
-      response
-    },
-    log: (message: string) => {
-      output.appendLine(`[${formatLogClock(new Date())}] ${message}`);
-      output.show(true);
-    }
-  };
 
   try {
-    output.appendLine(`================= ${resolvedRequest.name ?? resolvedRequest.id} ====================`);
-    await runHook(resolvedRequest.scripts?.pre, hookContext);
+    const variables = await prepareRuntimeVariables(resourceUri, requsetConfig);
+    const response = await clientHttp(requsetConfig.id, requsetConfig, variables);
 
-    const result = await send(resolvedRequest);
-    Object.assign(response, result);
-
-    await runHook(resolvedRequest.scripts?.post, hookContext);
+    if (requsetConfig.scripts?.post) {
+      await runHookStrict(requsetConfig.scripts.post, {
+        client: variables,
+        variables,
+        request: requsetConfig,
+        response
+      });
+      setRuntimeVhtVariables(resourceUri, variables);
+    }
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    response.error = message;
     vscode.window.showWarningMessage(message);
   }
 }
@@ -235,6 +213,7 @@ async function sendRequestCommand(target?: vscode.TreeItem): Promise<void> {
 async function stopRequestCommand(target?: vscode.TreeItem): Promise<void> {
   const resourceUri = getResourceUri(target);
   const fallbackRequestId = getActiveRequestId();
+
   if (!resourceUri && !fallbackRequestId) {
     return;
   }
