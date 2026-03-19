@@ -1,40 +1,41 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const vscodeState = vi.hoisted(() => {
-  const panel = {
+  const view = {
     webview: {
-      html: ""
+      html: "",
+      options: {}
     },
-    reveal: vi.fn(),
+    show: vi.fn(),
     onDidDispose: vi.fn()
   };
 
   return {
-    panel,
-    createWebviewPanel: vi.fn(() => panel)
+    view,
+    executeCommand: vi.fn(() => Promise.resolve(undefined))
   };
 });
 
 vi.mock("vscode", () => ({
-  window: {
-    createWebviewPanel: vscodeState.createWebviewPanel
+  commands: {
+    executeCommand: vscodeState.executeCommand
   },
-  ViewColumn: {
-    Active: 1
-  }
+  window: {}
 }));
 
 describe("client panel", () => {
   beforeEach(() => {
-    vscodeState.panel.webview.html = "";
-    vscodeState.panel.reveal.mockReset();
-    vscodeState.panel.onDidDispose.mockReset();
-    vscodeState.createWebviewPanel.mockClear();
+    vscodeState.view.webview.html = "";
+    vscodeState.view.show.mockReset();
+    vscodeState.view.onDidDispose.mockReset();
+    vscodeState.executeCommand.mockClear();
     vi.resetModules();
   });
 
-  it("renders highlighted log lines in a dedicated webview panel", async () => {
-    const { getClientPanel } = await import("../src/views/clientPanel");
+  it("renders highlighted log lines in the panel view", async () => {
+    const { getClientPanel, getClientPanelViewProvider } = await import("../src/views/clientPanel");
+    const provider = getClientPanelViewProvider() as any;
+    provider.resolveWebviewView(vscodeState.view);
     const panel = getClientPanel();
 
     panel.appendLine("[send] GET hello");
@@ -42,10 +43,10 @@ describe("client panel", () => {
     panel.appendLine("[error] GET hello: failed");
     panel.show();
 
-    expect(vscodeState.createWebviewPanel).toHaveBeenCalledTimes(1);
-    expect(vscodeState.panel.webview.html).toContain('class="line send"');
-    expect(vscodeState.panel.webview.html).toContain('class="line status"');
-    expect(vscodeState.panel.webview.html).toContain('class="line error"');
-    expect(vscodeState.panel.reveal).toHaveBeenCalled();
+    expect(vscodeState.view.webview.html).toContain('class="line send"');
+    expect(vscodeState.view.webview.html).toContain('class="line status"');
+    expect(vscodeState.view.webview.html).toContain('class="line error"');
+    expect(vscodeState.executeCommand).toHaveBeenCalledWith("workbench.view.extension.vortex-panel");
+    expect(vscodeState.view.show).toHaveBeenCalled();
   });
 });

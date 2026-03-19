@@ -108,6 +108,13 @@
           "title": "vortex",
           "icon": "$(insert)"
         }
+      ],
+      "panel": [
+        {
+          "id": "vortex-panel",
+          "title": "Vortex",
+          "icon": "$(terminal-view-icon)"
+        }
       ]
     },
     "views": {
@@ -116,6 +123,13 @@
           "id": "vortex-explorer",
           "icon": "$(insert)",
           "name": "Vortex Requests"
+        }
+      ],
+      "vortex-panel": [
+        {
+          "type": "webview",
+          "id": "vortex-client-panel-view",
+          "name": "Client Log"
         }
       ]
     },

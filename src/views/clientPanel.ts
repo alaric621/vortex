@@ -6,9 +6,25 @@ export interface ClientLogView {
   clear(): void;
 }
 
-class ClientPanelView implements ClientLogView {
-  private panel: vscode.WebviewPanel | undefined;
+export const CLIENT_PANEL_CONTAINER_ID = "vortex-panel";
+export const CLIENT_PANEL_VIEW_ID = "vortex-client-panel-view";
+
+class ClientPanelViewProvider implements vscode.WebviewViewProvider, ClientLogView, vscode.Disposable {
+  private view: vscode.WebviewView | undefined;
   private readonly lines: string[] = [];
+
+  resolveWebviewView(webviewView: vscode.WebviewView): void {
+    this.view = webviewView;
+    webviewView.webview.options = {
+      enableScripts: false
+    };
+    webviewView.onDidDispose(() => {
+      if (this.view === webviewView) {
+        this.view = undefined;
+      }
+    });
+    this.render();
+  }
 
   appendLine(value: string): void {
     this.lines.push(value);
@@ -19,7 +35,8 @@ class ClientPanelView implements ClientLogView {
   }
 
   show(preserveFocus: boolean = true): void {
-    this.ensurePanel().reveal(vscode.ViewColumn.Active, preserveFocus);
+    void vscode.commands.executeCommand(`workbench.view.extension.${CLIENT_PANEL_CONTAINER_ID}`);
+    this.view?.show?.(preserveFocus);
     this.render();
   }
 
@@ -28,34 +45,18 @@ class ClientPanelView implements ClientLogView {
     this.render();
   }
 
-  private ensurePanel(): vscode.WebviewPanel {
-    if (this.panel) {
-      return this.panel;
-    }
-
-    this.panel = vscode.window.createWebviewPanel(
-      "vortex-client-panel",
-      "Vortex Client",
-      vscode.ViewColumn.Active,
-      {
-        enableScripts: false,
-        retainContextWhenHidden: true
-      }
-    );
-    this.panel.onDidDispose(() => {
-      this.panel = undefined;
-    });
-    this.render();
-    return this.panel;
+  dispose(): void {
+    this.view = undefined;
+    this.lines.length = 0;
   }
 
   private render(): void {
-    if (!this.panel) {
+    if (!this.view) {
       return;
     }
 
     const body = this.lines.map(line => renderLine(line)).join("");
-    this.panel.webview.html = `<!DOCTYPE html>
+    this.view.webview.html = `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -123,13 +124,20 @@ class ClientPanelView implements ClientLogView {
   }
 }
 
-let clientPanelView: ClientPanelView | undefined;
+let clientPanelViewProvider: ClientPanelViewProvider | undefined;
 
 export function getClientPanel(): ClientLogView {
-  if (!clientPanelView) {
-    clientPanelView = new ClientPanelView();
+  if (!clientPanelViewProvider) {
+    clientPanelViewProvider = new ClientPanelViewProvider();
   }
-  return clientPanelView;
+  return clientPanelViewProvider;
+}
+
+export function getClientPanelViewProvider(): vscode.WebviewViewProvider & vscode.Disposable {
+  if (!clientPanelViewProvider) {
+    clientPanelViewProvider = new ClientPanelViewProvider();
+  }
+  return clientPanelViewProvider;
 }
 
 function renderLine(line: string): string {
