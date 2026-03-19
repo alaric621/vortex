@@ -72,30 +72,44 @@ class ClientPanelViewProvider implements vscode.WebviewViewProvider, ClientLogVi
       --fg: var(--vscode-editor-foreground);
       --muted: var(--vscode-descriptionForeground);
       --border: var(--vscode-panel-border);
+      --toolbar-bg: var(--vscode-sideBar-background);
+      --toolbar-fg: var(--vscode-sideBar-foreground);
+      --button-bg: var(--vscode-button-secondaryBackground);
+      --button-fg: var(--vscode-button-secondaryForeground);
+      --button-hover: var(--vscode-button-secondaryHoverBackground);
+      --entry-bg: var(--vscode-editorWidget-background);
+      --entry-head-bg: var(--vscode-titleBar-inactiveBackground);
       --accent: var(--vscode-textLink-foreground);
       --ok: var(--vscode-testing-iconPassed);
       --warn: var(--vscode-testing-iconQueued);
       --err: var(--vscode-testing-iconFailed);
       --info: var(--vscode-symbolIconVariableForeground);
     }
+    html, body {
+      height: 100%;
+    }
     body {
       margin: 0;
       background: var(--bg);
       color: var(--fg);
       font: 12px/1.6 var(--vscode-editor-font-family, ui-monospace, monospace);
+      overflow: hidden;
+    }
+    .app {
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
     }
     .toolbar {
-      position: sticky;
-      top: 0;
-      z-index: 1;
+      flex: 0 0 auto;
       display: flex;
       align-items: center;
       justify-content: space-between;
       gap: 12px;
       padding: 10px 14px;
       border-bottom: 1px solid var(--border);
-      background: color-mix(in srgb, var(--bg) 92%, var(--accent) 8%);
-      backdrop-filter: blur(6px);
+      background: var(--toolbar-bg);
+      color: var(--toolbar-fg);
     }
     .toolbar-title {
       font-weight: 700;
@@ -111,27 +125,29 @@ class ClientPanelViewProvider implements vscode.WebviewViewProvider, ClientLogVi
     }
     button {
       border: 1px solid var(--border);
-      background: transparent;
-      color: var(--fg);
+      background: var(--button-bg);
+      color: var(--button-fg);
       border-radius: 8px;
       padding: 5px 10px;
       font: inherit;
       cursor: pointer;
     }
     button:hover {
-      border-color: var(--accent);
-      color: var(--accent);
+      background: var(--button-hover);
     }
     .log {
+      flex: 1 1 auto;
+      overflow: auto;
       padding: 12px 14px 20px;
       display: grid;
       gap: 12px;
+      overscroll-behavior: contain;
     }
     .entry {
       border: 1px solid var(--border);
       border-radius: 12px;
       overflow: hidden;
-      background: color-mix(in srgb, var(--bg) 94%, var(--accent) 6%);
+      background: var(--entry-bg);
     }
     .entry-head {
       display: flex;
@@ -139,7 +155,7 @@ class ClientPanelViewProvider implements vscode.WebviewViewProvider, ClientLogVi
       gap: 12px;
       padding: 8px 12px;
       border-bottom: 1px solid var(--border);
-      background: color-mix(in srgb, var(--bg) 86%, var(--accent) 14%);
+      background: var(--entry-head-bg);
     }
     .entry-title {
       font-weight: 700;
@@ -200,19 +216,30 @@ class ClientPanelViewProvider implements vscode.WebviewViewProvider, ClientLogVi
   </style>
 </head>
 <body>
-  <div class="toolbar">
-    <div>
-      <div class="toolbar-title">Client Log</div>
-      <div class="toolbar-meta">${this.lines.length} lines</div>
+  <div class="app">
+    <div class="toolbar">
+      <div>
+        <div class="toolbar-title">Client Log</div>
+        <div class="toolbar-meta">${this.lines.length} lines</div>
+      </div>
+      <div class="toolbar-actions">
+        <button type="button" id="copyAll">Copy All</button>
+      </div>
     </div>
-    <div class="toolbar-actions">
-      <button type="button" id="copyAll">Copy All</button>
-    </div>
+    <div class="log" id="logRoot">${body}</div>
   </div>
-  <div class="log">${body}</div>
   <script>
+    const vscode = typeof acquireVsCodeApi === "function" ? acquireVsCodeApi() : undefined;
+    const state = vscode?.getState?.() ?? {};
+    const logRoot = document.getElementById("logRoot");
     const copyText = "${copyPayload}";
     const button = document.getElementById("copyAll");
+    if (logRoot && typeof state.scrollTop === "number") {
+      logRoot.scrollTop = state.scrollTop;
+    }
+    logRoot?.addEventListener("scroll", () => {
+      vscode?.setState?.({ scrollTop: logRoot.scrollTop });
+    });
     button?.addEventListener("click", async () => {
       try {
         await navigator.clipboard.writeText(copyText);
