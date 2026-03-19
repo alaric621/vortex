@@ -1,9 +1,11 @@
 import * as vscode from "vscode";
 import { FileSystemProvider } from "./core/filesystem/FileSystemProvider";
 import { ExplorerProvider } from "./views/explore";
+import { registerExploreCommands } from "./command/explore";
 import { VhtDiagnostics } from './core/vht/diagnostics';
 import { VhtCompletionProvider } from './core/vht/completion';
 import { VariableDecorator } from './core/vht/variableDecorator';
+
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
   const scheme = "vortex-fs";
   const authority = "request";
@@ -63,18 +65,19 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   const exploretreeView = vscode.window.createTreeView("vortex-explorer", {
     treeDataProvider: explorerProvider,
   });
+  const exploreCommands = registerExploreCommands(scheme, authority, fsProvider, explorerProvider);
 
   context.subscriptions.push(
-    // 记得把 treeView 实例也加进来
     exploretreeView,
     completionProvider,
     variableDecorator,
     vscode.workspace.registerFileSystemProvider(scheme, fsProvider),
+    ...exploreCommands,
     vscode.commands.registerCommand("vortex.request.refresh", async () => {
       fsProvider.refresh();
       explorerProvider.refresh();
     })
-  )
+  );
 }
 
 export function deactivate(): void { }
