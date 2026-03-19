@@ -63,26 +63,12 @@ export class VariableDecorator implements vscode.Disposable {
                 continue;
             }
 
-            const rendered = String(resolved);
             if (fullRange.start.line !== fullRange.end.line) {
-                // 多行或异常范围，回退到旧行为：整段后追加展示
-                inlineResolvedOptions.push({
-                    range: fullRange,
-                    hoverMessage: new vscode.MarkdownString([
-                        `**变量表达式**: \`${variable.expression}\``,
-                        `**当前值**: \`${rendered}\``
-                    ].join('\n\n')),
-                    renderOptions: {
-                        after: {
-                            contentText: rendered,
-                            margin: '0 0 0 0.35rem',
-                            color: new vscode.ThemeColor('editorCodeLens.foreground')
-                        }
-                    }
-                });
+                // 跨行变量容易造成装饰错位，默认不做可视替换，避免换行污染显示。
                 continue;
             }
 
+            const rendered = String(resolved);
             hiddenExpressionRanges.push(fullRange);
             const hiddenLength = Math.max(1, fullRange.end.character - fullRange.start.character);
             inlineResolvedOptions.push({

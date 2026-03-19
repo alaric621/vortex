@@ -7,11 +7,30 @@ import { VhtDiagnosticIssue } from './diagnosticsRules/types';
 export class VhtDiagnostics {
     private readonly collection: vscode.DiagnosticCollection;
     private readonly parser: VhtParser;
+    private readonly timers: Map<string, NodeJS.Timeout>;
 
     constructor() {
         // 在编辑器“问题”面板中显示的分类名称
         this.collection = vscode.languages.createDiagnosticCollection('vht-linter');
         this.parser = new VhtParser();
+        this.timers = new Map();
+    }
+
+    public scheduleUpdate(document: vscode.TextDocument, delayMs: number = 120) {
+        if (document.languageId !== 'vht') return;
+
+        const key = document.uri.toString();
+        const existing = this.timers.get(key);
+        if (existing) {
+            clearTimeout(existing);
+        }
+
+        const timer = setTimeout(() => {
+            this.timers.delete(key);
+            this.update(document);
+        }, delayMs);
+
+        this.timers.set(key, timer);
     }
 
     /**
@@ -36,6 +55,12 @@ export class VhtDiagnostics {
      * 当文档关闭时，清除该文档的所有错误记录
      */
     public clear(document: vscode.TextDocument) {
+        const key = document.uri.toString();
+        const existing = this.timers.get(key);
+        if (existing) {
+            clearTimeout(existing);
+            this.timers.delete(key);
+        }
         this.collection.delete(document.uri);
     }
 

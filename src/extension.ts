@@ -4,7 +4,6 @@ import { ExplorerProvider } from "./views/explore";
 import { VhtDiagnostics } from './core/vht/diagnostics';
 import { VhtCompletionProvider } from './core/vht/completion';
 import { VariableDecorator } from './core/vht/variableDecorator';
-import { vhtMockVariables } from "./env";
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
   const scheme = "vortex-fs";
   const authority = "request";
@@ -35,7 +34,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   // 监听文档事件
   context.subscriptions.push(
     vscode.workspace.onDidChangeTextDocument(e => {
-      diagnosticManager.update(e.document);
+      diagnosticManager.scheduleUpdate(e.document, 140);
+    }),
+    vscode.workspace.onDidCloseTextDocument(document => {
+      diagnosticManager.clear(document);
     }),
     vscode.window.onDidChangeTextEditorSelection(e => {
       if (e.textEditor.document.languageId !== 'vht') return;
@@ -65,7 +67,6 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     variableDecorator,
     vscode.workspace.registerFileSystemProvider(scheme, fsProvider),
     vscode.commands.registerCommand("vortex.request.refresh", async () => {
-      vhtMockVariables['afsd'] = Math.random()
       fsProvider.refresh();
       explorerProvider.refresh();
     })
