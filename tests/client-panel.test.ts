@@ -1,56 +1,47 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const vscodeState = vi.hoisted(() => {
-  const view = {
-    webview: {
-      html: "",
-      options: {}
-    },
+  const outputChannel = {
+    appendLine: vi.fn(),
     show: vi.fn(),
-    onDidDispose: vi.fn()
+    clear: vi.fn()
   };
 
   return {
-    view,
-    executeCommand: vi.fn(() => Promise.resolve(undefined))
+    outputChannel,
+    createOutputChannel: vi.fn(() => outputChannel)
   };
 });
 
 vi.mock("vscode", () => ({
-  commands: {
-    executeCommand: vscodeState.executeCommand
-  },
-  window: {}
+  window: {
+    createOutputChannel: vscodeState.createOutputChannel
+  }
 }));
 
-describe("client panel", () => {
+describe("client output channel", () => {
   beforeEach(() => {
-    vscodeState.view.webview.html = "";
-    vscodeState.view.show.mockReset();
-    vscodeState.view.onDidDispose.mockReset();
-    vscodeState.executeCommand.mockClear();
+    vscodeState.outputChannel.appendLine.mockReset();
+    vscodeState.outputChannel.show.mockReset();
+    vscodeState.outputChannel.clear.mockReset();
+    vscodeState.createOutputChannel.mockClear();
     vi.resetModules();
   });
 
-  it("renders highlighted log lines in the panel view", async () => {
-    const { getClientPanel, getClientPanelViewProvider } = await import("../src/views/clientPanel");
-    const provider = getClientPanelViewProvider() as any;
-    provider.resolveWebviewView(vscodeState.view);
-    const panel = getClientPanel();
+  it("uses the native vscode output channel as a singleton", async () => {
+    const { getClientPanel } = await import("../src/views/clientPanel");
+    const first = getClientPanel();
+    const second = getClientPanel();
 
-    panel.appendLine("[send] GET hello");
-    panel.appendLine("status: 200 OK");
-    panel.appendLine("duration: 42 ms");
-    panel.appendLine("[error] GET hello: failed");
-    panel.show();
+    first.appendLine("[send] GET hello");
+    first.show(true);
+    first.clear();
 
-    expect(vscodeState.view.webview.html).toContain('class="entry-toggle"');
-    expect(vscodeState.view.webview.html).toContain('class="entry-title">[send] GET hello');
-    expect(vscodeState.view.webview.html).toContain('class="entry-meta">duration: 42 ms  [error] GET hello: failed');
-    expect(vscodeState.view.webview.html).toContain('class="line status">status: 200 OK');
-    expect(vscodeState.view.webview.html).toContain('class="entry-body"');
-    expect(vscodeState.view.webview.html).toContain(">Copy<");
-    expect(vscodeState.executeCommand).toHaveBeenCalledWith("workbench.view.extension.vortex-panel");
-    expect(vscodeState.view.show).toHaveBeenCalled();
+    expect(first).toBe(second);
+    expect(vscodeState.createOutputChannel).toHaveBeenCalledTimes(1);
+    expect(vscodeState.createOutputChannel).toHaveBeenCalledWith("Vortex", "vortex-log");
+    expect(vscodeState.outputChannel.appendLine).toHaveBeenCalledWith("[send] GET hello");
+    expect(vscodeState.outputChannel.show).toHaveBeenCalledWith(true);
+    expect(vscodeState.outputChannel.clear).toHaveBeenCalledTimes(1);
   });
 });

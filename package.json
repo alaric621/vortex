@@ -16,6 +16,16 @@
   ],
   "main": "./dist/extension.js",
   "contributes": {
+    "configuration": {
+      "title": "Vortex",
+      "properties": {
+        "vortex.output.strictLogFormat": {
+          "type": "boolean",
+          "default": true,
+          "description": "Use strict output format consistent with log.md templates."
+        }
+      }
+    },
     "resourceLabelFormatters": [
       {
         "scheme": "vortex-fs",
@@ -108,13 +118,6 @@
           "title": "vortex",
           "icon": "$(insert)"
         }
-      ],
-      "panel": [
-        {
-          "id": "vortex-panel",
-          "title": "Vortex",
-          "icon": "$(terminal-view-icon)"
-        }
       ]
     },
     "views": {
@@ -123,13 +126,6 @@
           "id": "vortex-explorer",
           "icon": "$(insert)",
           "name": "Vortex Requests"
-        }
-      ],
-      "vortex-panel": [
-        {
-          "type": "webview",
-          "id": "vortex-client-panel-view",
-          "name": "Client Log"
         }
       ]
     },
@@ -143,6 +139,12 @@
           ".vht"
         ],
         "configuration": "./syntaxes/vht.language-configuration.json"
+      },
+      {
+        "id": "vortex-log",
+        "aliases": [
+          "Vortex Log"
+        ]
       }
     ],
     "grammars": [
@@ -154,6 +156,11 @@
           "meta.embedded.inline.javascript": "javascript",
           "hook.block.javascript": "javascript"
         }
+      },
+      {
+        "language": "vortex-log",
+        "scopeName": "source.vortex-log",
+        "path": "./syntaxes/vortex-log.tmLanguage.json"
       }
     ],
     "keybindings": [

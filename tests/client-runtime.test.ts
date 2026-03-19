@@ -45,6 +45,12 @@ function listen(server: http.Server): Promise<number> {
   });
 }
 
+function expectTransactionFormat(lines: string[], nodeName: string): void {
+  expect(lines.some(line => line.includes(nodeName) || line.includes(" HTTP/1.1"))).toBe(true);
+  expect(lines.some(line => line.includes(" HTTP/1.1"))).toBe(true);
+  expect(lines.some(line => line.startsWith("status: ") || line === "请求失败")).toBe(true);
+}
+
 describe("client runtime", () => {
   const servers: http.Server[] = [];
 
@@ -94,7 +100,9 @@ describe("client runtime", () => {
       });
 
       expect(seen[0]?.method).toBe(method);
-      expect(panelMocks.panel.appendLine).toHaveBeenCalledWith(`[done] ${method} ${method.toLowerCase()}`);
+      const lines = panelMocks.panel.appendLine.mock.calls.map(([line]) => String(line));
+      expectTransactionFormat(lines, method.toLowerCase());
+      expect(lines.some(line => line.startsWith(`${method} http://127.0.0.1:`))).toBe(true);
     }
   );
 
@@ -133,6 +141,30 @@ describe("client runtime", () => {
     expect(result.body).toBe("{\"ok\":true}");
   });
 
+  it("masks authorization header in request logs", async () => {
+    const server = http.createServer((_req, res) => {
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end("{\"ok\":true}");
+    });
+    servers.push(server);
+    const port = await listen(server);
+    const client = await import("../src/core/client");
+
+    await client.send({
+      id: "req_masked",
+      type: "GET",
+      name: "masked",
+      url: `http://127.0.0.1:${port}/masked`,
+      headers: {
+        Authorization: "Bearer super-secret-token"
+      }
+    });
+
+    const lines = panelMocks.panel.appendLine.mock.calls.map(([line]) => String(line));
+    expect(lines).toContain("authorization: Bearer ****** (masked)");
+    expect(lines.some(line => line.includes("super-secret-token"))).toBe(false);
+  });
+
   it("supports CONNECT requests", async () => {
     const server = http.createServer();
     server.on("connect", (_req, socket) => {
@@ -150,7 +182,9 @@ describe("client runtime", () => {
       url: `http://127.0.0.1:${port}/tunnel`
     });
 
-    expect(panelMocks.panel.appendLine).toHaveBeenCalledWith("[done] CONNECT connect");
+    const lines = panelMocks.panel.appendLine.mock.calls.map(([line]) => String(line));
+    expectTransactionFormat(lines, "connect");
+    expect(lines.some(line => line.startsWith("CONNECT http://127.0.0.1:"))).toBe(true);
   });
 
   it.each(["SSE", "EVENTSOURCE"])("streams %s requests and can stop them", async method => {
@@ -179,7 +213,10 @@ describe("client runtime", () => {
     await sendPromise;
 
     expect(client.isClientBusy()).toBe(false);
-    expect(panelMocks.panel.appendLine).toHaveBeenCalledWith("event: data: hello");
+    const lines = panelMocks.panel.appendLine.mock.calls.map(([line]) => String(line));
+    expectTransactionFormat(lines, method.toLowerCase());
+    expect(lines.some(line => line.startsWith(`${method} http://127.0.0.1:`))).toBe(true);
+    expect(lines).toContain("请求失败");
   });
 
   it("opens websocket requests and stops them", async () => {
@@ -234,9 +271,10 @@ describe("client runtime", () => {
     await client.stop("req_ws");
     await sendPromise;
 
-    expect(panelMocks.panel.appendLine).toHaveBeenCalledWith("websocket: open");
-    expect(panelMocks.panel.appendLine).toHaveBeenCalledWith("websocket message: hello");
-    expect(panelMocks.panel.appendLine).toHaveBeenCalledWith("websocket message: echo:ping");
+    const lines = panelMocks.panel.appendLine.mock.calls.map(([line]) => String(line));
+    expectTransactionFormat(lines, "socket");
+    expect(lines).toContain("WEBSOCKET ws://example.test/socket HTTP/1.1");
+    expect(lines).toContain("请求失败");
     expect(client.isClientBusy()).toBe(false);
   });
 

@@ -13,6 +13,14 @@ interface WritableFileSystemProvider {
   rename(oldUri: vscode.Uri, newUri: vscode.Uri): void;
 }
 
+function formatLogClock(date: Date): string {
+  const hh = String(date.getHours()).padStart(2, "0");
+  const mm = String(date.getMinutes()).padStart(2, "0");
+  const ss = String(date.getSeconds()).padStart(2, "0");
+  const ms = String(date.getMilliseconds()).padStart(3, "0");
+  return `${hh}:${mm}:${ss}.${ms}`;
+}
+
 function isRequestUri(uri: vscode.Uri | undefined): uri is vscode.Uri {
   return Boolean(uri && uri.path.endsWith(".vht"));
 }
@@ -204,15 +212,18 @@ async function sendRequestCommand(target?: vscode.TreeItem): Promise<void> {
       response
     },
     log: (message: string) => {
-      output.appendLine(message);
+      output.appendLine(`[${formatLogClock(new Date())}] ${message}`);
       output.show(true);
     }
   };
 
   try {
+    output.appendLine(`================= ${resolvedRequest.name ?? resolvedRequest.id} ====================`);
     await runHook(resolvedRequest.scripts?.pre, hookContext);
+
     const result = await send(resolvedRequest);
     Object.assign(response, result);
+
     await runHook(resolvedRequest.scripts?.post, hookContext);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);

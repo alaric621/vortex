@@ -2,7 +2,6 @@ import * as vscode from "vscode";
 import { isClientBusy, onDidChangeClientState } from "./core/client";
 import { FileSystemProvider } from "./core/filesystem/FileSystemProvider";
 import { ExplorerProvider } from "./views/explore";
-import { CLIENT_PANEL_VIEW_ID, getClientPanelViewProvider } from "./views/clientPanel";
 import { registerExploreCommands } from "./command/explore";
 import { VhtDiagnostics } from './core/vht/diagnostics';
 import { VhtCompletionProvider } from './core/vht/completion';
@@ -41,7 +40,6 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
   const fsProvider = new FileSystemProvider();
   const explorerProvider = new ExplorerProvider(scheme, authority);
-  const clientPanelProvider = getClientPanelViewProvider();
   // 监听文档事件
   context.subscriptions.push(
     vscode.workspace.onDidChangeTextDocument(e => {
@@ -90,9 +88,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     exploretreeView,
     completionProvider,
     variableDecorator,
-    clientPanelProvider,
     clientStateSubscription,
-    vscode.window.registerWebviewViewProvider(CLIENT_PANEL_VIEW_ID, clientPanelProvider),
     vscode.workspace.registerFileSystemProvider(scheme, fsProvider),
     ...exploreCommands,
     vscode.commands.registerCommand("vortex.request.refresh", async () => {

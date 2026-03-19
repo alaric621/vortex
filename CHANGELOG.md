@@ -63,3 +63,27 @@
 - 建立 `vortex-fs` 文件系统与树视图基础结构。
 - 增加 VHT 解析与转换基础能力（`parser.ts` / `converter.ts`）。
 - 增加文件系统与转换层基础测试。
+  ================= 节点名称 =================
+• TIMESTAMP: 2026-03-19 12:30:05
+  REQUEST_ID: req_profile_patch
+  NODE: profile/update
+  METHOD: PATCH
+  URL: https://api.myapp.com/v1/profile
+  REQUEST_HEADERS:
+    - Authorization: Bearer ****** (masked)
+    - User-Agent: VSCode-Extension/1.0
+  REQUEST_BODY:
+  {"bio":"Exploring AI"}
+  STATUS: 403 Forbidden
+  DURATION_MS: 88
+  RESPONSE_HEADERS:
+    - Cache-Control: no-cache
+    - X-RateLimit-Remaining: 49
+  RESPONSE_BODY:
+  {
+    "error": "INSUFFICIENT_PERMISSIONS",
+    "details": "User does not have 'write' access to this resource."
+  }
+  OK: false
+  ERROR_CODE: INSUFFICIENT_PERMISSIONS
+  ERROR_MESSAGE: User does not have 'write' access to this resource.

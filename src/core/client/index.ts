@@ -31,6 +31,14 @@ export interface ClientRunResult {
   meta?: Record<string, unknown>;
 }
 
+interface TimingMetrics {
+  dnsMs?: number;
+  connectMs?: number;
+  tlsMs?: number;
+  ttfbMs?: number;
+  totalMs: number;
+}
+
 interface RuntimeWebSocket {
   readonly readyState: number;
   readonly CLOSING: number;
@@ -103,8 +111,62 @@ function endExecution(id: string): void {
   emitState();
 }
 
-function appendDivider(channel: ClientLogView): void {
-  channel.appendLine("------------------------------------------------------------");
+function formatLogTime(date: Date): string {
+  const yyyy = String(date.getFullYear());
+  const mm = String(date.getMonth() + 1).padStart(2, "0");
+  const dd = String(date.getDate()).padStart(2, "0");
+  const hh = String(date.getHours()).padStart(2, "0");
+  const mi = String(date.getMinutes()).padStart(2, "0");
+  const ss = String(date.getSeconds()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd} ${hh}:${mi}:${ss}`;
+}
+
+function formatClockMs(date: Date): string {
+  const hh = String(date.getHours()).padStart(2, "0");
+  const mi = String(date.getMinutes()).padStart(2, "0");
+  const ss = String(date.getSeconds()).padStart(2, "0");
+  const ms = String(date.getMilliseconds()).padStart(3, "0");
+  return `${hh}:${mi}:${ss}.${ms}`;
+}
+
+function formatEventLine(payload: string, eventType = "message"): string {
+  if (eventType === "message") {
+    return `[${formatClockMs(new Date())}] ${payload}`;
+  }
+  return `[${formatClockMs(new Date())}] ${eventType} ${payload}`;
+}
+
+function buildRequestId(request: ClientRequestPayload, startedAt: number): string {
+  return `${request.id}-${startedAt}`;
+}
+
+function flattenHeaderEntries(headers: Record<string, unknown> | undefined): Array<[string, string]> {
+  if (!headers) {
+    return [];
+  }
+
+  return Object.entries(headers).map(([key, value]) => {
+    if (Array.isArray(value)) {
+      return [key.toLowerCase(), value.join(",")] as [string, string];
+    }
+
+    if (value === undefined || value === null) {
+      return [key.toLowerCase(), ""] as [string, string];
+    }
+
+    return [key.toLowerCase(), String(value)] as [string, string];
+  }).sort(([left], [right]) => left.localeCompare(right));
+}
+
+function isStrictLogFormatEnabled(): boolean {
+  try {
+    const workspace = Reflect.get(vscode as unknown as object, "workspace") as {
+      getConfiguration?: (section?: string) => { get?: (key: string, defaultValue?: boolean) => boolean };
+    } | undefined;
+    return workspace?.getConfiguration?.("vortex.output")?.get?.("strictLogFormat", true) ?? true;
+  } catch {
+    return true;
+  }
 }
 
 function normalizeMethod(type?: string): ClientMethod {
@@ -127,35 +189,113 @@ function resolvePayload(param: ClientRequestPayload): ClientRequestPayload {
   };
 }
 
-function buildRequestLabel(param: ClientRequestPayload): string {
-  return `${normalizeMethod(param.type)} ${param.name ?? param.id}`;
+function toBodyText(response: ClientRunResult): string {
+  const MAX_PREVIEW_BYTES = 8 * 1024;
+  if (response.body && response.body.length > 0) {
+    const totalBytes = Buffer.byteLength(response.body, "utf8");
+    if (totalBytes <= MAX_PREVIEW_BYTES) {
+      return response.body;
+    }
+    const preview = Buffer.from(response.body, "utf8").subarray(0, MAX_PREVIEW_BYTES).toString("utf8");
+    return `${preview}\n...[truncated ${totalBytes - MAX_PREVIEW_BYTES} bytes]`;
+  }
+
+  if (response.events.length > 0) {
+    const raw = response.events.join("\n");
+    const totalBytes = Buffer.byteLength(raw, "utf8");
+    if (totalBytes <= MAX_PREVIEW_BYTES) {
+      return raw;
+    }
+    const preview = Buffer.from(raw, "utf8").subarray(0, MAX_PREVIEW_BYTES).toString("utf8");
+    return `${preview}\n...[truncated ${totalBytes - MAX_PREVIEW_BYTES} bytes]`;
+  }
+
+  return "[]";
 }
 
-function appendRequestIntro(channel: ClientLogView, param: ClientRequestPayload): void {
-  appendDivider(channel);
-  channel.appendLine(`[send] ${buildRequestLabel(param)}`);
-  channel.appendLine(`url: ${param.url ?? ""}`);
+function maskHeaderValue(key: string, value: string): string {
+  if (key.toLowerCase() !== "authorization") {
+    return value;
+  }
+
+  if (value.toLowerCase().startsWith("bearer ")) {
+    return "Bearer ****** (masked)";
+  }
+
+  return "****** (masked)";
 }
 
-function appendRequestHeaders(channel: ClientLogView, headers: Record<string, string> | undefined): void {
-  const pairs = Object.entries(headers ?? {});
-  if (pairs.length === 0) {
+function appendHeaderBlock(channel: ClientLogView, headers: Array<[string, string]>): void {
+  for (const [key, value] of headers) {
+    channel.appendLine(`${key}: ${maskHeaderValue(key, value)}`);
+  }
+}
+
+function appendExchangeLog(
+  channel: ClientLogView,
+  request: ClientRequestPayload,
+  runtimeResponse: ClientRunResult,
+  durationMs: number
+): void {
+  const strictLogFormat = isStrictLogFormatEnabled();
+  const method = normalizeMethod(request.type);
+  const url = request.url ?? "";
+  const requestHeaders = flattenHeaderEntries(request.headers as Record<string, unknown> | undefined);
+  const responseHeaders = flattenHeaderEntries(runtimeResponse.headers);
+  const responseBodyText = toBodyText(runtimeResponse);
+  const timings = runtimeResponse.meta?.timings as TimingMetrics | undefined;
+  const hasResponseStatus = typeof runtimeResponse.status === "number" && runtimeResponse.status > 0;
+  const isFailed = Boolean(runtimeResponse.error || !hasResponseStatus);
+  const statusLine = isFailed
+    ? "FAILED"
+    : `${runtimeResponse.status ?? 0} ${runtimeResponse.statusText ?? ""}`.trim();
+  const responseContentType = responseHeaders.find(([key]) => key === "content-type")?.[1] ?? "(none)";
+
+  if (strictLogFormat) {
+    channel.appendLine(`${method} ${url} HTTP/1.1`);
+    appendHeaderBlock(channel, requestHeaders);
+    channel.appendLine("");
+    if (isFailed) {
+      channel.appendLine("请求失败");
+      return;
+    }
+    channel.appendLine(`status: ${statusLine}`);
+    channel.appendLine(`duration: ${durationMs}ms`);
+    channel.appendLine(`content-type: ${responseContentType}`);
+    const hasDetailedTimings = Boolean(
+      timings
+      && (timings.dnsMs !== undefined
+        || timings.connectMs !== undefined
+        || timings.tlsMs !== undefined
+        || timings.ttfbMs !== undefined)
+    );
+    if (hasDetailedTimings && timings) {
+      channel.appendLine(
+        `timings: dns=${timings.dnsMs ?? "-"}ms connect=${timings.connectMs ?? "-"}ms tls=${timings.tlsMs ?? "-"}ms ttfb=${timings.ttfbMs ?? "-"}ms total=${timings.totalMs}ms`
+      );
+    }
+    for (const [key, value] of responseHeaders) {
+      if (key === "content-type") {
+        continue;
+      }
+      channel.appendLine(`${key}: ${value}`);
+    }
+    channel.appendLine("");
+    channel.appendLine(`status: ${statusLine}`);
+    channel.appendLine(`duration: ${durationMs}ms`);
+    channel.appendLine(`content-type: ${responseContentType}`);
+    for (const [key, value] of responseHeaders) {
+      if (key === "content-type") {
+        continue;
+      }
+      channel.appendLine(`${key}: ${value}`);
+    }
+    channel.appendLine(responseBodyText);
     return;
   }
 
-  channel.appendLine("headers:");
-  for (const [key, value] of pairs) {
-    channel.appendLine(`  ${key}: ${value}`);
-  }
-}
-
-function appendRequestBody(channel: ClientLogView, body: string | undefined): void {
-  if (!body) {
-    return;
-  }
-
-  channel.appendLine("body:");
-  channel.appendLine(body);
+  channel.appendLine(`${method} ${url} ${statusLine} ${durationMs}ms`);
+  channel.appendLine(responseBodyText);
 }
 
 function ensureUrl(input: string | undefined): URL {
@@ -166,18 +306,38 @@ function ensureUrl(input: string | undefined): URL {
   return new URL(input);
 }
 
-function sendHttpRequest(param: ClientRequestPayload, channel: ClientLogView, runtimeResponse: ClientRunResult): RequestExecution {
+function sendHttpRequest(param: ClientRequestPayload, runtimeResponse: ClientRunResult): RequestExecution {
   const url = ensureUrl(param.url);
   const client = url.protocol === "https:" ? https : http;
   const body = param.body ?? "";
+  const startedAt = Date.now();
+  const marks: {
+    dnsAt?: number;
+    connectAt?: number;
+    secureAt?: number;
+    firstByteAt?: number;
+  } = {};
 
   const request = client.request(url, {
     method: normalizeMethod(param.type),
     headers: param.headers ?? {}
   });
 
+  request.once("socket", socket => {
+    socket.once("lookup", () => {
+      marks.dnsAt = Date.now();
+    });
+    socket.once("connect", () => {
+      marks.connectAt = Date.now();
+    });
+    socket.once("secureConnect", () => {
+      marks.secureAt = Date.now();
+    });
+  });
+
   const completed = new Promise<void>((resolve, reject) => {
     request.once("response", response => {
+      marks.firstByteAt = Date.now();
       const chunks: Buffer[] = [];
       response.on("data", chunk => {
         chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
@@ -186,14 +346,19 @@ function sendHttpRequest(param: ClientRequestPayload, channel: ClientLogView, ru
         runtimeResponse.status = response.statusCode ?? 0;
         runtimeResponse.statusText = response.statusMessage ?? "";
         runtimeResponse.headers = response.headers as Record<string, unknown>;
-        channel.appendLine(`status: ${response.statusCode ?? 0} ${response.statusMessage ?? ""}`.trim());
-        channel.appendLine(`response headers: ${JSON.stringify(response.headers, null, 2)}`);
+        runtimeResponse.meta = {
+          ...(runtimeResponse.meta ?? {}),
+          responseAt: formatLogTime(new Date()),
+          timings: {
+            dnsMs: marks.dnsAt ? marks.dnsAt - startedAt : undefined,
+            connectMs: marks.connectAt ? marks.connectAt - startedAt : undefined,
+            tlsMs: marks.secureAt ? marks.secureAt - startedAt : undefined,
+            ttfbMs: marks.firstByteAt ? marks.firstByteAt - startedAt : undefined,
+            totalMs: Date.now() - startedAt
+          } as TimingMetrics
+        };
         const responseText = Buffer.concat(chunks).toString("utf8");
         runtimeResponse.body = responseText;
-        if (responseText) {
-          channel.appendLine("response body:");
-          channel.appendLine(responseText);
-        }
         resolve();
       });
     });
@@ -201,11 +366,20 @@ function sendHttpRequest(param: ClientRequestPayload, channel: ClientLogView, ru
     request.once("connect", (response, socket, head) => {
       runtimeResponse.status = response.statusCode ?? 0;
       runtimeResponse.statusText = response.statusMessage ?? "";
-      runtimeResponse.meta = { headBytes: head.length };
-      channel.appendLine(`connect: ${response.statusCode ?? 0} ${response.statusMessage ?? ""}`.trim());
-      if (head.length > 0) {
-        channel.appendLine(`connect head bytes: ${head.length}`);
-      }
+      runtimeResponse.headers = response.headers as Record<string, unknown>;
+      runtimeResponse.meta = {
+        ...(runtimeResponse.meta ?? {}),
+        headBytes: head.length,
+        responseAt: formatLogTime(new Date()),
+        timings: {
+          dnsMs: marks.dnsAt ? marks.dnsAt - startedAt : undefined,
+          connectMs: marks.connectAt ? marks.connectAt - startedAt : undefined,
+          tlsMs: marks.secureAt ? marks.secureAt - startedAt : undefined,
+          ttfbMs: Date.now() - startedAt,
+          totalMs: Date.now() - startedAt
+        } as TimingMetrics
+      };
+      runtimeResponse.body = "";
       socket.end();
       resolve();
     });
@@ -232,7 +406,7 @@ function headersToRecord(headers: Headers): Record<string, string> {
   return output;
 }
 
-async function consumeSseStream(response: Response, channel: ClientLogView, runtimeResponse: ClientRunResult): Promise<void> {
+async function consumeSseStream(response: Response, runtimeResponse: ClientRunResult): Promise<void> {
   if (!response.body) {
     return;
   }
@@ -253,8 +427,19 @@ async function consumeSseStream(response: Response, channel: ClientLogView, runt
       const block = pending.slice(0, boundaryIndex).trim();
       pending = pending.slice(boundaryIndex + 2);
       if (block) {
-        runtimeResponse.events.push(block);
-        channel.appendLine(`event: ${block}`);
+        const lines = block.split("\n");
+        let eventType = "message";
+        const dataParts: string[] = [];
+        for (const line of lines) {
+          if (line.startsWith("event:")) {
+            eventType = line.slice(6).trim() || "message";
+          }
+          if (line.startsWith("data:")) {
+            dataParts.push(line.slice(5).trim());
+          }
+        }
+        const payload = dataParts.length > 0 ? dataParts.join("\n") : block;
+        runtimeResponse.events.push(formatEventLine(payload, eventType));
       }
       boundaryIndex = pending.indexOf("\n\n");
     }
@@ -262,14 +447,14 @@ async function consumeSseStream(response: Response, channel: ClientLogView, runt
 
   const tail = pending.trim();
   if (tail) {
-    runtimeResponse.events.push(tail);
-    channel.appendLine(`event: ${tail}`);
+    runtimeResponse.events.push(formatEventLine(tail, "message"));
   }
 }
 
-function sendSseRequest(param: ClientRequestPayload, channel: ClientLogView, runtimeResponse: ClientRunResult): RequestExecution {
+function sendSseRequest(param: ClientRequestPayload, runtimeResponse: ClientRunResult): RequestExecution {
   const controller = new AbortController();
   const url = ensureUrl(param.url);
+  const startedAt = Date.now();
   const headers = {
     Accept: "text/event-stream",
     ...(param.headers ?? {})
@@ -285,9 +470,22 @@ function sendSseRequest(param: ClientRequestPayload, channel: ClientLogView, run
     runtimeResponse.status = response.status;
     runtimeResponse.statusText = response.statusText;
     runtimeResponse.headers = headersToRecord(response.headers);
-    channel.appendLine(`status: ${response.status} ${response.statusText}`.trim());
-    channel.appendLine(`response headers: ${JSON.stringify(headersToRecord(response.headers), null, 2)}`);
-    await consumeSseStream(response, channel, runtimeResponse);
+    runtimeResponse.meta = {
+      ...(runtimeResponse.meta ?? {}),
+      responseAt: formatLogTime(new Date()),
+      timings: {
+        ttfbMs: Date.now() - startedAt,
+        totalMs: Date.now() - startedAt
+      } as TimingMetrics
+    };
+    await consumeSseStream(response, runtimeResponse);
+    runtimeResponse.meta = {
+      ...(runtimeResponse.meta ?? {}),
+      timings: {
+        ...((runtimeResponse.meta?.timings as TimingMetrics | undefined) ?? { }),
+        totalMs: Date.now() - startedAt
+      } as TimingMetrics
+    };
   })();
 
   return {
@@ -306,7 +504,8 @@ function normalizeWebSocketUrl(input: string | undefined): string {
   return url.toString();
 }
 
-function sendWebSocketRequest(param: ClientRequestPayload, channel: ClientLogView, runtimeResponse: ClientRunResult): RequestExecution {
+function sendWebSocketRequest(param: ClientRequestPayload, runtimeResponse: ClientRunResult): RequestExecution {
+  const startedAt = Date.now();
   const WebSocketCtor = (globalThis as { WebSocket?: new (url: string) => RuntimeWebSocket }).WebSocket;
   if (!WebSocketCtor) {
     throw new Error("Global WebSocket is not available in this runtime.");
@@ -327,24 +526,34 @@ function sendWebSocketRequest(param: ClientRequestPayload, channel: ClientLogVie
       runtimeResponse.meta = {
         ...(runtimeResponse.meta ?? {}),
         protocol: "websocket",
-        url: normalizeWebSocketUrl(param.url)
+        url: normalizeWebSocketUrl(param.url),
+        responseAt: formatLogTime(new Date()),
+        timings: {
+          ttfbMs: Date.now() - startedAt,
+          totalMs: Date.now() - startedAt
+        } as TimingMetrics
       };
-      channel.appendLine("websocket: open");
       if (param.body) {
         socket.send(param.body);
-        channel.appendLine(`websocket sent: ${param.body}`);
       }
     });
     socket.addEventListener("message", event => {
       const message = String(event.data);
-      runtimeResponse.events.push(message);
-      channel.appendLine(`websocket message: ${message}`);
+      runtimeResponse.events.push(formatEventLine(message, "message"));
     });
     socket.addEventListener("error", () => {
       finish(() => reject(new Error("WebSocket connection failed.")));
     });
     socket.addEventListener("close", event => {
-      channel.appendLine(`websocket close: ${event.code} ${event.reason}`);
+      runtimeResponse.meta = {
+        ...(runtimeResponse.meta ?? {}),
+        closeCode: event.code,
+        closeReason: event.reason,
+        timings: {
+          ...((runtimeResponse.meta?.timings as TimingMetrics | undefined) ?? { }),
+          totalMs: Date.now() - startedAt
+        } as TimingMetrics
+      };
       finish(resolve);
     });
   });
@@ -360,15 +569,15 @@ function sendWebSocketRequest(param: ClientRequestPayload, channel: ClientLogVie
   };
 }
 
-function createExecution(param: ClientRequestPayload, channel: ClientLogView, runtimeResponse: ClientRunResult): RequestExecution {
+function createExecution(param: ClientRequestPayload, runtimeResponse: ClientRunResult): RequestExecution {
   const method = normalizeMethod(param.type);
   if (method === "WEBSOCKET") {
-    return sendWebSocketRequest(param, channel, runtimeResponse);
+    return sendWebSocketRequest(param, runtimeResponse);
   }
   if (method === "SSE" || method === "EVENTSOURCE") {
-    return sendSseRequest(param, channel, runtimeResponse);
+    return sendSseRequest(param, runtimeResponse);
   }
-  return sendHttpRequest(param, channel, runtimeResponse);
+  return sendHttpRequest(param, runtimeResponse);
 }
 
 export function onDidChangeClientState(listener: ClientListener): vscode.Disposable {
@@ -400,35 +609,45 @@ export async function send(param: ClientRequestPayload): Promise<ClientRunResult
   const channel = getClientOutputChannel();
   const resolved = resolvePayload(param);
   const runtimeResponse: ClientRunResult = {
-    events: []
+    events: [],
+    meta: {
+      requestAt: formatLogTime(new Date()),
+      requestId: buildRequestId(resolved, startedAt)
+    }
   };
   channel.show(true);
 
-  const execution = createExecution(resolved, channel, runtimeResponse);
+  const execution = createExecution(resolved, runtimeResponse);
   beginExecution(param.id, execution.stop);
 
   try {
-    appendRequestIntro(channel, resolved);
-    appendRequestHeaders(channel, resolved.headers);
-    appendRequestBody(channel, resolved.body);
     await execution.completed;
-    channel.appendLine(`duration: ${Date.now() - startedAt} ms`);
-    channel.appendLine(`[done] ${buildRequestLabel(resolved)}`);
+    if (runtimeResponse.status === undefined && !runtimeResponse.error) {
+      runtimeResponse.error = "No response received.";
+      runtimeResponse.body = "No response received.";
+    }
+    const durationMs = Date.now() - startedAt;
+    appendExchangeLog(channel, resolved, runtimeResponse, durationMs);
     return runtimeResponse;
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     runtimeResponse.error = message;
-    channel.appendLine(`duration: ${Date.now() - startedAt} ms`);
+    runtimeResponse.meta = {
+      ...(runtimeResponse.meta ?? {}),
+      responseAt: String(runtimeResponse.meta?.responseAt ?? formatLogTime(new Date())),
+      timings: {
+        ...((runtimeResponse.meta?.timings as TimingMetrics | undefined) ?? { }),
+        totalMs: Date.now() - startedAt
+      } as TimingMetrics
+    };
+    runtimeResponse.body = message;
+    appendExchangeLog(channel, resolved, runtimeResponse, Date.now() - startedAt);
     if (message !== "The operation was aborted" && message !== "Stopped by user.") {
-      channel.appendLine(`[error] ${buildRequestLabel(resolved)}: ${message}`);
       void vscode.window.showErrorMessage(`Request failed: ${message}`);
-    } else {
-      channel.appendLine(`[stopped] ${buildRequestLabel(resolved)}`);
     }
     return runtimeResponse;
   } finally {
     endExecution(param.id);
-    appendDivider(channel);
   }
 }
 
