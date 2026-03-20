@@ -59,6 +59,69 @@ flowchart TD
 
 ---
 
+## 🎭 装饰器调用流程
+
+```mermaid
+flowchart TD
+  A[编辑器事件触发] --> B{事件类型}
+  B -->|文本变更| C[onDidChangeTextDocument]
+  B -->|选择变化| D[onDidChangeTextEditorSelection]
+  B -->|切换编辑器| E[onDidChangeActiveTextEditor]
+  C --> F[VariableDecorator.update]
+  D --> F
+  E --> F
+  F --> G[DocumentAstCache.get]
+  G --> H[遍历 AST.variables]
+  H --> I[resolveRenderExpression]
+  I --> J{是否解析成功}
+  J -->|成功| K[生成 inline 装饰与隐藏原表达式]
+  J -->|失败| L[标记错误装饰]
+  K --> M[setDecorations]
+  L --> M
+```
+
+---
+
+## 🧩 补全/装饰器/语法检查完整流程（含注释）
+
+```mermaid
+flowchart TD
+  %% === 触发入口 ===
+  A[用户操作] --> B{事件类型}
+  B -->|输入字符| C[Completion Provider]
+  B -->|文本变更| D[Diagnostics 调度]
+  B -->|光标/编辑器切换| E[Decorator 更新]
+
+  %% === AST 缓存 ===
+  C --> F[DocumentAstCache.get]
+  D --> F
+  E --> F
+  F --> G[Parser 生成 AST - 命中缓存则复用]
+
+  %% === 补全链路 ===
+  G --> H{Completion 位置判断}
+  H -->|变量区| I[Variable 完成建议 - 读取运行时变量]
+  H -->|Header 区| J[Header Key/Value 建议]
+  H -->|请求行| K[Method/URL/Version 建议]
+
+  %% === 语法检查链路 ===
+  G --> L[collectDiagnosticIssues]
+  L --> M[请求行/头/正文/变量规则]
+  M --> N[转换为 VS Code Diagnostics]
+  N --> O[diagnosticsCollection.set]
+
+  %% === 装饰器链路 ===
+  G --> P[VariableDecorator.update]
+  P --> Q[resolveRenderExpression]
+  Q --> R{解析成功?}
+  R -->|是| S[隐藏原表达式并显示 inline 值]
+  R -->|否| T[标记错误装饰]
+  S --> U[setDecorations]
+  T --> U
+```
+
+---
+
 ## 🏗️ 开发与调试
 
 ### 📋 环境要求
@@ -182,3 +245,24 @@ console.log('响应后置处理')
 | ✨ 编辑体验 | 精细化高亮 | 覆盖 URL 片段、版本、端口及表达式子结构的高亮 | 🚧 持续优化 |
 | ✨ 编辑体验 | AST 诊断扩展 | 增加结构约束与跨段一致性的语法校验规则 | ✅ 已接入 |
 | ✨ 编辑体验 | 性能优化 | 确保在大文件场景下的解析、补全与诊断稳定性 | ⚙️ 持续调优 |
+装饰器我希望能下面这样使用 
+```javascript 
+const variable = [{"expression":"client.token","raw":"{{client.token}}","range":{"start":{"line":1,"character":22},"end":{"line":1,"character":38}}},{"expression":"client.toke","raw":"{{client.toke}}","range":{"start":{"line":3,"character":7},"end":{"line":3,"character":22}}}]
+Decorators(variable,{
+    client:{
+       toekn:"fsdfsdf",
+       toke:"toke"
+    }
+})
+
+
+
+应该单独创建 src/core/vht/decorators 目录
+index.ts  负责更新 创建
+variable.ts  负责返回 数据给index.ts
+
+
+装饰器的逻辑
+index.ts 
+  create() 创建装饰器 
+  

@@ -1,10 +1,10 @@
 import * as vscode from "vscode";
-import { getVhtVariables } from "../../context";
-import { collectDiagnosticIssues } from "./engine/diagnosticsRules";
-import { DiagnosticIssue } from "./engine/diagnosticsRules/types";
-import { DocumentAstCache } from "./documentAstCache";
-import { toVsCodeRange } from "../../utils/range";
-import { Range } from "./engine/parser/types";
+import { getVhtVariables } from "../../../context";
+import { collectDiagnosticIssues } from "../engine/diagnosticsRules";
+import { DiagnosticIssue } from "../engine/diagnosticsRules/types";
+import { DocumentAstCache } from "../documentAstCache";
+import { toVsCodeRange } from "../../../utils/range";
+import { Range } from "../engine/parser/types";
 
 export class Diagnostics {
   // 变量：collection，用于存储collection。

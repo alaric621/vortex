@@ -6,8 +6,8 @@ import { prepareRuntimeVariables } from "../core/runtime/variables";
 import { DocumentAstCache } from "../core/vht/documentAstCache";
 import { CompletionProvider } from "../core/vht/completion";
 import { Diagnostics } from "../core/vht/diagnostics";
-import { VariableDecorator } from "../core/vht/variableDecorator";
-import { globContext, onDidChangeVhtVariables, refreshBaseVhtVariables } from "../context";
+import { VariableDecorator } from "../core/vht/decorators";
+import { getVhtVariables, globContext, onDidChangeVhtVariables, refreshBaseVhtVariables } from "../context";
 
 /**
  * 方法：registerLanguageFeatures
@@ -35,8 +35,8 @@ export function registerLanguageFeatures(
   );
 
   context.subscriptions.push(astCache, diagnostics.getCollection(), completionProvider, decorator);
-  context.subscriptions.push(...createDocumentSubscriptions(diagnostics, decorator));
-  refreshActiveEditor(diagnostics, decorator);
+  context.subscriptions.push(...createDocumentSubscriptions(astCache, diagnostics, decorator));
+  refreshActiveEditor(astCache, diagnostics, decorator);
 }
 
 /**
@@ -48,23 +48,46 @@ export function registerLanguageFeatures(
  * 返回值示例：const list = createDocumentSubscriptions({ ... }, { ... }); // [{ id: 'demo' }]
  */
 function createDocumentSubscriptions(
+  astCache: DocumentAstCache,
   diagnostics: Diagnostics,
   decorator: VariableDecorator
 ): vscode.Disposable[] {
+  let decoratorTimer: NodeJS.Timeout | undefined;
+
+  const scheduleDecoratorUpdate = (editor?: vscode.TextEditor): void => {
+    if (decoratorTimer) {
+      clearTimeout(decoratorTimer);
+    }
+    const target = editor ?? vscode.window.activeTextEditor;
+    if (!target || target.document.languageId !== "vht") {
+      return;
+    }
+    decoratorTimer = setTimeout(() => {
+      const ast = astCache.get(target.document);
+      const variables = getVhtVariables(target.document.uri);
+      decorator.update(ast, variables, target);
+    }, 60);
+  };
+
   return [
     vscode.workspace.onDidChangeTextDocument(event => {
+      if (event.document.languageId !== "vht") {
+        return;
+      }
       diagnostics.scheduleUpdate(event.document, 140);
       if (vscode.window.activeTextEditor?.document.uri.toString() === event.document.uri.toString()) {
-        decorator.update(vscode.window.activeTextEditor);
+        scheduleDecoratorUpdate(vscode.window.activeTextEditor);
       }
     }),
     vscode.workspace.onDidCloseTextDocument(document => {
-      diagnostics.clear(document);
+      if (document.languageId === "vht") {
+        diagnostics.clear(document);
+      }
     }),
     vscode.workspace.onDidSaveTextDocument(document => {
       if (isWorkspaceConfigDocument(document)) {
         refreshBaseVhtVariables(document.uri);
-        refreshActiveEditor(diagnostics, decorator);
+        refreshActiveEditor(astCache, diagnostics, decorator);
         return;
       }
 
@@ -74,11 +97,11 @@ function createDocumentSubscriptions(
     }),
     vscode.window.onDidChangeTextEditorSelection(event => {
       if (isVhtEditor(event.textEditor)) {
-        decorator.update(event.textEditor);
+        scheduleDecoratorUpdate(event.textEditor);
       }
     }),
     vscode.window.onDidChangeActiveTextEditor(() => {
-      refreshActiveEditor(diagnostics, decorator);
+      refreshActiveEditor(astCache, diagnostics, decorator);
     }),
     onDidChangeVhtVariables(documentUri => {
       // 变量：editor，用于存储编辑器。
@@ -87,7 +110,9 @@ function createDocumentSubscriptions(
         return;
       }
       diagnostics.update(editor.document);
-      decorator.update(editor);
+      const ast = astCache.get(editor.document);
+      const variables = getVhtVariables(editor.document.uri);
+      decorator.update(ast, variables, editor);
     })
   ];
 }
@@ -121,7 +146,11 @@ async function refreshRuntimeVariables(document: vscode.TextDocument): Promise<v
  * @returns 无返回值，通过副作用完成处理。
  * 返回值示例：refreshActiveEditor({ ... }, { ... }); // undefined
  */
-function refreshActiveEditor(diagnostics: Diagnostics, decorator: VariableDecorator): void {
+function refreshActiveEditor(
+  astCache: DocumentAstCache,
+  diagnostics: Diagnostics,
+  decorator: VariableDecorator
+): void {
   // 变量：editor，用于存储编辑器。
   const editor = getActiveVhtEditor();
   if (!editor) {
@@ -129,7 +158,9 @@ function refreshActiveEditor(diagnostics: Diagnostics, decorator: VariableDecora
   }
 
   diagnostics.update(editor.document);
-  decorator.update(editor);
+  const ast = astCache.get(editor.document);
+  const variables = getVhtVariables(editor.document.uri);
+  decorator.update(ast, variables, editor);
 }
 
 /**

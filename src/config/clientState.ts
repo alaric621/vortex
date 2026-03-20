@@ -1,7 +1,7 @@
 import * as vscode from "vscode";
 import { isClientBusy, onDidChangeClientState } from "../core/client";
 import { Diagnostics } from "../core/vht/diagnostics";
-import { VariableDecorator } from "../core/vht/variableDecorator";
+import { VariableDecorator } from "../core/vht/decorators";
 import { ExplorerProvider } from "../views/explore";
 
 /**

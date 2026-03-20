@@ -12,7 +12,15 @@
     "Other"
   ],
   "activationEvents": [
-    "onFileSystem:vortex-fs"
+    "onLanguage:vht",
+    "onView:vortex-explorer",
+    "onFileSystem:vortex-fs",
+    "onCommand:vortex.request.refresh",
+    "onCommand:vortex.request.create",
+    "onCommand:vortex.request.rename",
+    "onCommand:vortex.request.delete",
+    "onCommand:vortex.request.send",
+    "onCommand:vortex.request.stop"
   ],
   "main": "./dist/extension.js",
   "scripts": {

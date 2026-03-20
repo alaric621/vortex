@@ -19,6 +19,7 @@ export class CompletionProvider implements vscode.CompletionItemProvider {
   public provideCompletionItems(document: vscode.TextDocument, position: vscode.Position): vscode.CompletionItem[] {
     // 变量：ast，用于存储语法树。
     const ast = this.astCache.get(document);
+    
     // 变量：variableItems，用于存储变量items。
     const variableItems = getVariableCompletions(document, position, ast);
     if (variableItems.length > 0) {

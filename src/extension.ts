@@ -4,7 +4,7 @@ import { registerLanguageFeatures } from "./config/language";
 import { registerClientState } from "./config/clientState";
 import { DocumentAstCache } from "./core/vht/documentAstCache";
 import { Diagnostics } from "./core/vht/diagnostics";
-import { VariableDecorator } from "./core/vht/variableDecorator";
+import { VariableDecorator } from "./core/vht/decorators";
 
 /**
  * 方法：activate
@@ -20,7 +20,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   // 变量：diagnostics，用于存储诊断。
   const diagnostics = new Diagnostics(astCache);
   // 变量：decorator，用于存储decorator。
-  const decorator = new VariableDecorator(astCache);
+  const decorator = new VariableDecorator();
   // 变量：explorer，用于存储explorer。
   const explorer = registerExplorer(context, "vortex-fs", "request");
 
