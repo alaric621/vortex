@@ -101,11 +101,6 @@
       ],
       "view/item/context": [
         {
-          "command": "vortex.request.create",
-          "when": "view == vortex-explorer",
-          "group": "inline@0"
-        },
-        {
           "command": "vortex.request.send",
           "when": "view == vortex-explorer && viewItem == vortex.requestNode.idle",
           "group": "inline@1"

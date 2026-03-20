@@ -1,6 +1,5 @@
-import { getVhtVariables } from '../../../context';
-import { VhtAST } from '../parser/types';
-import { VhtDiagnosticIssue } from './types';
+import { AST } from '../parser/types';
+import { DiagnosticIssue } from './types';
 import { resolveVariableExpression } from '../variableExpression';
 
 // 变量：VARIABLE_OPEN，用于存储变量open。
@@ -17,9 +16,13 @@ const VARIABLE_CLOSE = '}}';
  * @returns 返回 VhtDiagnosticIssue[] 列表。
  * 返回值示例：const list = collectVariableIssues(ast, 'demo-value', { token: 'abc' }); // [{ id: 'demo' }]
  */
-export function collectVariableIssues(ast: VhtAST, text: string, variables: Record<string, unknown> = getVhtVariables()): VhtDiagnosticIssue[] {
+export function collectVariableIssues(
+  ast: AST,
+  text: string,
+  variables: Record<string, unknown> = {}
+): DiagnosticIssue[] {
     // 变量：issues，用于存储issues。
-    const issues: VhtDiagnosticIssue[] = [];
+    const issues: DiagnosticIssue[] = [];
     issues.push(...collectBraceIssues(text));
 
     for (const variable of ast.variables) {
@@ -81,9 +84,9 @@ export function collectVariableIssues(ast: VhtAST, text: string, variables: Reco
  * @returns 返回 VhtDiagnosticIssue[] 列表。
  * 返回值示例：const list = collectBraceIssues('demo-value'); // [{ id: 'demo' }]
  */
-function collectBraceIssues(text: string): VhtDiagnosticIssue[] {
+function collectBraceIssues(text: string): DiagnosticIssue[] {
     // 变量：issues，用于存储issues。
-    const issues: VhtDiagnosticIssue[] = [];
+    const issues: DiagnosticIssue[] = [];
     // 变量：index，用于存储index。
     let index = 0;
     // 变量：openStack，用于存储openstack。

@@ -1,6 +1,6 @@
 import { Collections } from "../../../typings/filesystem";
 import { vhtMockVariables } from "../../context";
-import { render } from "../render";
+import { render } from "../template/render";
 import { ClientHttpMethod, ClientMethod, PreparedRequest } from "./types";
 
 // 变量：HTTP_METHODS，用于存储httpmethods。

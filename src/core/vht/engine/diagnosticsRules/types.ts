@@ -1,6 +1,6 @@
 import { Range } from '../parser/types';
 
-export interface VhtDiagnosticIssue {
+export interface DiagnosticIssue {
     range: Range;
     message: string;
     code: string;

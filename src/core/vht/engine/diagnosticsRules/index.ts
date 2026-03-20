@@ -1,9 +1,9 @@
-import { VhtAST } from '../parser/types';
+import { AST } from '../parser/types';
 import { collectBodyIssues } from './bodyRules';
 import { collectHeaderIssues } from './headerRules';
 import { collectRequestIssues } from './requestRules';
 import { collectVariableIssues } from './variableRules';
-import { VhtDiagnosticIssue } from './types';
+import { DiagnosticIssue } from './types';
 
 /**
  * 方法：collectDiagnosticIssues
@@ -14,7 +14,7 @@ import { VhtDiagnosticIssue } from './types';
  * @returns 返回 VhtDiagnosticIssue[] 列表。
  * 返回值示例：const list = collectDiagnosticIssues(ast, 'demo-value', { token: 'abc' }); // [{ id: 'demo' }]
  */
-export function collectDiagnosticIssues(ast: VhtAST, text: string, variables?: Record<string, unknown>): VhtDiagnosticIssue[] {
+export function collectDiagnosticIssues(ast: AST, text: string, variables?: Record<string, unknown>): DiagnosticIssue[] {
     return [
         ...collectRequestIssues(ast, text),
         ...collectHeaderIssues(ast),

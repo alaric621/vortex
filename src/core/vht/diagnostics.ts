@@ -1,12 +1,12 @@
 import * as vscode from "vscode";
 import { getVhtVariables } from "../../context";
-import { collectDiagnosticIssues } from "./diagnosticsRules";
-import { VhtDiagnosticIssue } from "./diagnosticsRules/types";
-import { DocumentAstCache } from "./parser/documentAstCache";
+import { collectDiagnosticIssues } from "./engine/diagnosticsRules";
+import { DiagnosticIssue } from "./engine/diagnosticsRules/types";
+import { DocumentAstCache } from "./documentAstCache";
 import { toVsCodeRange } from "../../utils/range";
-import { Range as VhtRange } from "./parser/types";
+import { Range } from "./engine/parser/types";
 
-export class VhtDiagnostics {
+export class Diagnostics {
   // 变量：collection，用于存储collection。
   private readonly collection = vscode.languages.createDiagnosticCollection("vht-linter");
   // 变量：timers，用于存储timers。
@@ -109,7 +109,7 @@ export class VhtDiagnostics {
  * @returns 返回 vscode.Diagnostic 类型结果。
  * 返回值示例：const result = createParserDiagnostic({ ... }, 'demo-value'); // { ok: true }
  */
-function createParserDiagnostic(range: VhtRange, message: string): vscode.Diagnostic {
+function createParserDiagnostic(range: Range, message: string): vscode.Diagnostic {
   // 变量：diagnostic，用于存储诊断。
   const diagnostic = new vscode.Diagnostic(
     toVsCodeRange(range),
@@ -147,7 +147,7 @@ function getParserDiagnosticCode(message: string): string | undefined {
  * @returns 返回 vscode.Diagnostic 类型结果。
  * 返回值示例：const result = createRuleDiagnostic({ ... }); // { ok: true }
  */
-function createRuleDiagnostic(issue: VhtDiagnosticIssue): vscode.Diagnostic {
+function createRuleDiagnostic(issue: DiagnosticIssue): vscode.Diagnostic {
   // 变量：diagnostic，用于存储诊断。
   const diagnostic = new vscode.Diagnostic(
     toVsCodeRange(issue.range),
@@ -166,7 +166,7 @@ function createRuleDiagnostic(issue: VhtDiagnosticIssue): vscode.Diagnostic {
  * @returns 返回 vscode.DiagnosticSeverity 类型结果。
  * 返回值示例：const result = toSeverity({ ... }); // { ok: true }
  */
-function toSeverity(severity: VhtDiagnosticIssue["severity"]): vscode.DiagnosticSeverity {
+function toSeverity(severity: DiagnosticIssue["severity"]): vscode.DiagnosticSeverity {
   if (severity === "error") {
     return vscode.DiagnosticSeverity.Error;
   }

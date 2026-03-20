@@ -77,7 +77,7 @@ vi.mock("../src/context", () => ({
 
 import * as vscode from "vscode";
 import { getVariableCompletions } from "../src/core/vht/completion/variable";
-import type { VhtAST } from "../src/core/vht/parser/types";
+import type { AST } from "../src/core/vht/engine/parser/types";
 import { getVhtVariables } from "../src/context";
 
 class FakeDocument {
@@ -105,7 +105,7 @@ const lines = [
   "plain text"
 ];
 
-const ast: VhtAST = {
+const ast: AST = {
   nodes: [],
   errors: [],
   sections: {

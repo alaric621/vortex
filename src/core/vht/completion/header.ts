@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { ASTNode, VhtAST } from '../parser/types';
+import { ASTNode, AST } from '../engine/parser/types';
 
 // 变量：COMMON_HEADER_KEYS，用于存储commonheaderkeys。
 const COMMON_HEADER_KEYS = [
@@ -133,7 +133,7 @@ const HEADER_VALUE_SUGGESTIONS: Record<string, string[]> = {
  */
 export function isInHeaderSection(
     document: vscode.TextDocument,
-    ast: VhtAST,
+    ast: AST,
     position: vscode.Position,
     nodeAtCursor?: ASTNode
 ): boolean {
@@ -161,7 +161,7 @@ export function isInHeaderSection(
 export function getHeaderCompletions(
     document: vscode.TextDocument,
     position: vscode.Position,
-    ast: VhtAST
+    ast: AST
 ): vscode.CompletionItem[] {
     // 变量：lineText，用于存储行text。
     const lineText = document.lineAt(position.line).text;
@@ -190,7 +190,7 @@ export function getHeaderCompletions(
 function getHeaderKeyCompletions(
     document: vscode.TextDocument,
     position: vscode.Position,
-    ast: VhtAST,
+    ast: AST,
     lineText: string
 ): vscode.CompletionItem[] {
     // 变量：protocol，用于存储protocol。
@@ -253,7 +253,7 @@ function getHeaderValueCompletions(
  * @returns 返回 'http' | 'websocket' | 'sse' 类型结果。
  * 返回值示例：const result = detectProtocol(ast); // { ok: true }
  */
-function detectProtocol(ast: VhtAST): 'http' | 'websocket' | 'sse' {
+function detectProtocol(ast: AST): 'http' | 'websocket' | 'sse' {
     // 变量：method，用于存储方法。
     const method = String(ast.sections.request?.data?.method ?? '').toUpperCase();
     // 变量：url，用于存储地址。
@@ -319,7 +319,7 @@ function dedupeKeys(keys: string[]): string[] {
  * @returns 返回 Set<string> 类型结果。
  * 返回值示例：const result = getExistingHeaderKeys(ast, 'demo-value'); // { ok: true }
  */
-function getExistingHeaderKeys(ast: VhtAST, lineText: string): Set<string> {
+function getExistingHeaderKeys(ast: AST, lineText: string): Set<string> {
     // 变量：keys，用于存储keys。
     const keys = new Set<string>(
         ast.sections.headers
@@ -345,7 +345,7 @@ function getExistingHeaderKeys(ast: VhtAST, lineText: string): Set<string> {
  * @returns 返回布尔值；true 表示条件成立，false 表示条件不成立。
  * 返回值示例：const ok = isAfterNonHeaderSection(ast, 1); // true
  */
-function isAfterNonHeaderSection(ast: VhtAST, line: number): boolean {
+function isAfterNonHeaderSection(ast: AST, line: number): boolean {
     return getSectionStartLines(ast).some(start => typeof start === 'number' && line >= start);
 }
 
@@ -356,7 +356,7 @@ function isAfterNonHeaderSection(ast: VhtAST, line: number): boolean {
  * @returns 命中时返回 Array<number >，未命中时返回 undefined。
  * 返回值示例：const list = getSectionStartLines(ast); // { ok: true }
  */
-function getSectionStartLines(ast: VhtAST): Array<number | undefined> {
+function getSectionStartLines(ast: AST): Array<number | undefined> {
     return [
         ast.sections.body?.range.start.line,
         ast.sections.scripts.pre?.range.start.line,

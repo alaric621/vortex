@@ -86,10 +86,10 @@ import {
   refreshBaseVhtVariables,
   setRuntimeVhtVariables
 } from "../src/context";
-import { prepareRuntimeVariables } from "../src/core/runtimeVariables";
-import { VhtParser } from "../src/core/vht/parser";
+import { prepareRuntimeVariables } from "../src/core/runtime/variables";
+import { Parser } from "../src/core/vht/engine/parser";
 import { getVariableCompletions } from "../src/core/vht/completion/variable";
-import { collectDiagnosticIssues } from "../src/core/vht/diagnosticsRules";
+import { collectDiagnosticIssues } from "../src/core/vht/engine/diagnosticsRules";
 
 describe("workspace environment variables", () => {
   let workspaceRoot: string;
@@ -155,7 +155,7 @@ describe("workspace environment variables", () => {
       "utf8"
     );
 
-    const parser = new VhtParser();
+    const parser = new Parser();
     const text = "GET http://localhost\nAuthorization: Bearer {{a}}";
     const ast = parser.parse(text);
     const document = {
@@ -186,7 +186,7 @@ describe("workspace environment variables", () => {
       "utf8"
     );
 
-    const parser = new VhtParser();
+    const parser = new Parser();
     const text = "GET http://localhost\nAuthorization: Bearer {{service.token}}";
     const ast = parser.parse(text);
 
@@ -245,7 +245,9 @@ describe("workspace environment variables", () => {
       client: {
         token: "preview-token"
       },
-      env: "dev"
+      env: {
+        host: ""
+      }
     });
     expect(getVhtVariables(documentUri)).toEqual(variables);
   });

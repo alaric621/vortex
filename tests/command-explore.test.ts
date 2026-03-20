@@ -75,7 +75,7 @@ vi.mock("../src/core/client", () => ({
   getClientOutputChannel: clientMocks.getClientOutputChannelMock
 }));
 
-vi.mock("../src/core/runHook", () => ({
+vi.mock("../src/core/hooks/runHook", () => ({
   runHookStrict: hookMocks.runHookStrictMock
 }));
 

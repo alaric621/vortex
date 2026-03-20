@@ -1,15 +1,15 @@
 import * as vscode from "vscode";
-import { VhtParser } from "./index";
-import { VhtAST } from "./types";
+import { Parser } from "./engine/parser";
+import { AST } from "./engine/parser/types";
 
 interface AstCacheEntry {
   version: number;
-  ast: VhtAST;
+  ast: AST;
 }
 
 export class DocumentAstCache implements vscode.Disposable {
   // 变量：parser，用于存储解析器。
-  private readonly parser = new VhtParser();
+  private readonly parser = new Parser();
   // 变量：entries，用于存储entries。
   private readonly entries = new Map<string, AstCacheEntry>();
 
@@ -20,7 +20,7 @@ export class DocumentAstCache implements vscode.Disposable {
    * @returns 返回 VhtAST 类型结果。
    * 返回值示例：const result = get(document); // { ok: true }
    */
-  get(document: vscode.TextDocument): VhtAST {
+  get(document: vscode.TextDocument): AST {
     // 变量：key，用于存储key。
     const key = document.uri.toString();
     // 变量：cached，用于存储cached。

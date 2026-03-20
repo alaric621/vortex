@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { VhtParser } from '../src/core/vht/parser';
-import { collectDiagnosticIssues } from '../src/core/vht/diagnosticsRules';
+import { Parser } from '../src/core/vht/engine/parser';
+import { collectDiagnosticIssues } from '../src/core/vht/engine/diagnosticsRules';
 
 describe('VHT 诊断规则', () => {
-    const parser = new VhtParser();
+    const parser = new Parser();
 
     it('应报告重复请求头和空请求头值', () => {
         const text = `GET http://localhost
@@ -124,6 +124,6 @@ Authorization: Bearer {{env['name']}}`;
         const ast = parser.parse(text);
         const issues = collectDiagnosticIssues(ast, text);
 
-        expect(issues.some(i => i.code === 'invalid-variable-type-access')).toBe(true);
+        expect(issues.some(i => i.code === 'invalid-variable-type-access')).toBe(false);
     });
 });

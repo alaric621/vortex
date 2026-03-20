@@ -30,6 +30,35 @@
 
 ---
 
+## 🔁 执行流程图
+
+```mermaid
+flowchart TD
+  A[VS Code 激活扩展] --> B[extension.activate]
+  B --> C[注册 VHT 能力]
+  C --> C1[DocumentAstCache]
+  C --> C2[Completion]
+  C --> C3[Diagnostics]
+  C --> C4[Decorator]
+  B --> D[注册 Vortex-FS]
+  D --> D1[FileSystemProvider]
+  D --> D2[Explorer TreeView]
+  B --> E[注册命令]
+  E --> E1[create/rename/delete]
+  E --> E2[send/stop]
+  E2 --> F[prepareRuntimeVariables]
+  F --> G[运行 pre hook]
+  G --> H[clientHttp]
+  H --> I[HTTP / WS / SSE 执行]
+  I --> J[响应/事件]
+  J --> K[运行 post hook]
+  K --> L[setRuntimeVhtVariables]
+  C3 --> M[诊断更新]
+  C4 --> N[变量装饰更新]
+```
+
+---
+
 ## 🏗️ 开发与调试
 
 ### 📋 环境要求

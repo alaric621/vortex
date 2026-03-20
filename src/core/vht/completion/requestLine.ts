@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { ASTNode, VhtAST } from '../parser/types';
+import { ASTNode, AST } from '../engine/parser/types';
 
 // 变量：REQUEST_METHODS，用于存储请求methods。
 const REQUEST_METHODS = [
@@ -24,7 +24,7 @@ const HTTP_VERSIONS = ['HTTP/1.0', 'HTTP/1.1', 'HTTP/2', 'HTTP/3'];
  */
 export function isInRequestLine(
     document: vscode.TextDocument,
-    ast: VhtAST,
+    ast: AST,
     position: vscode.Position,
     nodeAtCursor?: ASTNode
 ): boolean {
@@ -53,7 +53,7 @@ export function isInRequestLine(
 export function getRequestLineCompletions(
     document: vscode.TextDocument,
     position: vscode.Position,
-    ast: VhtAST
+    ast: AST
 ): vscode.CompletionItem[] {
     // 变量：lineText，用于存储行text。
     const lineText = document.lineAt(position.line).text;

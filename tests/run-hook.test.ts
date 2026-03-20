@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { HookExecutor, runHookStrict } from "../src/core/runHook";
+import { HookExecutor, runHookStrict } from "../src/core/hooks/runHook";
 
 describe("hook 脚本执行", () => {
   it("应该通过 scope 注入变量并返回执行结果", async () => {

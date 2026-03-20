@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { VhtParser } from '../src/core/vht/parser';
-import { findNodeAtPosition } from '../src/core/vht/parser/types';
+import { Parser } from '../src/core/vht/engine/parser';
+import { findNodeAtPosition } from '../src/core/vht/engine/parser/types';
 
 describe('vht position context', () => {
-    const parser = new VhtParser();
+    const parser = new Parser();
     
     it('should treat first-line lowercase method prefix as RequestLine', () => {
         const ast = parser.parse('g');

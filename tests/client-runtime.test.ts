@@ -51,7 +51,7 @@ const METHOD_CASES = METHODS.map(method => ({
     ? ""
     : method === "POST"
       ? "{\"name\":\"demo\"}"
-      : "{\"env\":\"dev\"}",
+      : "{\"env\":\"[object Object]\"}",
   expectedContentType: BODYLESS_METHODS.has(method) ? undefined : "application/json",
   successStatus: method === "POST" ? 201 : 200,
   successBody: method === "CONNECT" || method === "HEAD" ? "" : { ok: true, method },

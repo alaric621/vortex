@@ -1,5 +1,5 @@
-import { VhtAST } from '../parser/types';
-import { VhtDiagnosticIssue } from './types';
+import { AST } from '../parser/types';
+import { DiagnosticIssue } from './types';
 
 type HeaderValueValidator = (value: string) => boolean;
 
@@ -35,9 +35,9 @@ const ENUM_HEADER_RULES: Record<string, { values: string[]; mode?: 'single' | 'c
  * @returns 返回 VhtDiagnosticIssue[] 列表。
  * 返回值示例：const list = collectHeaderIssues(ast); // [{ id: 'demo' }]
  */
-export function collectHeaderIssues(ast: VhtAST): VhtDiagnosticIssue[] {
+export function collectHeaderIssues(ast: AST): DiagnosticIssue[] {
     // 变量：issues，用于存储issues。
-    const issues: VhtDiagnosticIssue[] = [];
+    const issues: DiagnosticIssue[] = [];
     // 变量：seen，用于存储seen。
     const seen = new Map<string, number>();
 

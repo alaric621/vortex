@@ -1,4 +1,4 @@
-import { VhtAST } from './parser/types';
+import { AST } from './parser/types';
 
 /**
  * 这里的 Collections 对应你项目中的数据结构
@@ -14,7 +14,7 @@ export interface Collections {
     };
 }
 
-export class VhtConverter {
+export class Converter {
     /**
      * 将解析出的 AST 转换为结构化的 JSON 对象
      * 严谨点：处理多个相同类型的节点合并（如 Body 分多行解析的情况）
@@ -26,7 +26,7 @@ export class VhtConverter {
      * @returns 返回 Collections 类型结果。
      * 返回值示例：const result = astToJson(ast); // { id: 'req_demo', type: 'GET', name: 'users', folder: '/', url: 'https://example.com' }
      */
-    public astToJson(ast: VhtAST): Collections {
+    public astToJson(ast: AST): Collections {
         // 变量：result，用于存储result。
         const result: Collections = {
             type: 'GET',

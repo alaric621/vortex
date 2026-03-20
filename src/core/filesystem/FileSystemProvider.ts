@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
-import { VhtConverter } from "../vht/converter";
-import { VhtParser } from "../vht/parser";
+import { Converter } from "../vht/engine/converter";
+import { Parser } from "../vht/engine/parser";
 import {
   getDirContent,
   getStat,
@@ -18,9 +18,9 @@ export class FileSystemProvider implements vscode.FileSystemProvider {
   // 变量：didChangeFileEmitter，用于存储didchange文件emitter。
   private readonly didChangeFileEmitter = new vscode.EventEmitter<vscode.FileChangeEvent[]>();
   // 变量：parser，用于存储解析器。
-  private readonly parser = new VhtParser();
+  private readonly parser = new Parser();
   // 变量：converter，用于存储converter。
-  private readonly converter = new VhtConverter();
+  private readonly converter = new Converter();
 
   // 变量：onDidChangeFile，用于存储ondidchange文件。
   readonly onDidChangeFile: vscode.Event<vscode.FileChangeEvent[]> = this.didChangeFileEmitter.event;
@@ -208,7 +208,7 @@ export class FileSystemProvider implements vscode.FileSystemProvider {
    * @returns 无返回值，通过副作用完成处理。
    * 返回值示例：saveRequest('demo-value', request, 'created'); // undefined
    */
-  private saveRequest(path: string, request: ReturnType<VhtConverter["astToJson"]>, mode: "created" | "updated"): void {
+  private saveRequest(path: string, request: ReturnType<Converter["astToJson"]>, mode: "created" | "updated"): void {
     if (mode === "created") {
     createItem(globContext.collections, path, false);
     }
@@ -335,7 +335,7 @@ export class FileSystemProvider implements vscode.FileSystemProvider {
    * @returns 返回 ReturnType<VhtParser["parse"]> 类型结果。
    * 返回值示例：const result = validateWritableVht('demo-value'); // { ok: true }
    */
-  private validateWritableVht(text: string): ReturnType<VhtParser["parse"]> {
+  private validateWritableVht(text: string): ReturnType<Parser["parse"]> {
     // 变量：ast，用于存储语法树。
     const ast = this.parser.parse(text);
     if (ast.errors.length > 0) {

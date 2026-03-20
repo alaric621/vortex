@@ -7,10 +7,10 @@ import {
   ensureRequestPathWithoutExtension,
   joinPath
 } from "../utils/path";
-import { runHookStrict } from "../core/runHook";
+import { runHookStrict } from "../core/hooks/runHook";
 import { createHookConsole } from "../core/client/log";
 import type { ClientResult } from "../core/client/types";
-import { prepareRuntimeVariables } from "../core/runtimeVariables";
+import { prepareRuntimeVariables } from "../core/runtime/variables";
 import { globContext, setRuntimeVhtVariables } from "../context";
 import { buildUri, getParentFolderPath, getResourceUri, isRequestUri, toEntityUri } from "../utils/requestUri";
 import {

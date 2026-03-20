@@ -1,8 +1,8 @@
 import * as vscode from 'vscode';
 import { getVhtVariables } from '../../../context';
 import { rangeContainsPosition, toVsCodeRange } from '../../../utils/range';
-import { VhtAST } from '../parser/types';
-import { resolveVariableExpression } from '../variableExpression';
+import { AST } from '../engine/parser/types';
+import { resolveVariableExpression } from '../engine/variableExpression';
 
 type CompletionSuggestion = { label: string; insertText: string; detail: string };
 
@@ -18,7 +18,7 @@ type CompletionSuggestion = { label: string; insertText: string; detail: string 
 export function getVariableCompletions(
     document: vscode.TextDocument,
     position: vscode.Position,
-    ast: VhtAST
+    ast: AST
 ): vscode.CompletionItem[] {
     // 变量：context，用于存储context。
     const context = getVariableContext(document, position, ast);
@@ -39,7 +39,7 @@ export function getVariableCompletions(
 function getVariableContext(
     document: vscode.TextDocument,
     position: vscode.Position,
-    ast: VhtAST
+    ast: AST
 ): { start: number; prefix: string } | undefined {
     // 变量：variable，用于存储变量。
     const variable = ast.variables.find(item => rangeContainsPosition(toVsCodeRange(item.range), position));

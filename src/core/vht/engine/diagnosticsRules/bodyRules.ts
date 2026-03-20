@@ -1,5 +1,5 @@
-import { VhtAST } from '../parser/types';
-import { VhtDiagnosticIssue } from './types';
+import { AST } from '../parser/types';
+import { DiagnosticIssue } from './types';
 
 /**
  * 方法：collectBodyIssues
@@ -8,9 +8,9 @@ import { VhtDiagnosticIssue } from './types';
  * @returns 返回 VhtDiagnosticIssue[] 列表。
  * 返回值示例：const list = collectBodyIssues(ast); // [{ id: 'demo' }]
  */
-export function collectBodyIssues(ast: VhtAST): VhtDiagnosticIssue[] {
+export function collectBodyIssues(ast: AST): DiagnosticIssue[] {
     // 变量：issues，用于存储issues。
-    const issues: VhtDiagnosticIssue[] = [];
+    const issues: DiagnosticIssue[] = [];
     // 变量：body，用于存储正文。
     const body = ast.sections.body;
 

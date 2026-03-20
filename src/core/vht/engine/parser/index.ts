@@ -1,6 +1,6 @@
-import { ASTNode, VhtAST, Range } from './types';
+import { ASTNode, AST, Range } from './types';
 
-export class VhtParser {
+export class Parser {
     // 完美的匹配正则
     private readonly REGEX_REQUEST = /^(GET|POST|PUT|DELETE|PATCH|HEAD|OPTIONS|CONNECT|TRACE|WEBSOCKET|SSE|EVENTSOURCE|SUBSCRIBE|UNSUBSCRIBE)\s+(.+)$/;
     // 简单的 Header 正则
@@ -15,7 +15,7 @@ export class VhtParser {
      * @returns 返回 VhtAST 类型结果。
      * 返回值示例：const result = parse('demo-value'); // { ok: true }
      */
-    public parse(text: string): VhtAST {
+    public parse(text: string): AST {
         // 变量：normalizedText，用于存储normalizedtext。
         const normalizedText = text.replace(/\r\n/g, '\n');
         // 变量：lines，用于存储lines。
@@ -58,7 +58,7 @@ export class VhtParser {
      * @returns 返回 number 类型结果。
      * 返回值示例：const count = parseRequestAndHeaders([], 1, ast); // 1
      */
-    private parseRequestAndHeaders(lines: string[], start: number, ast: VhtAST): number {
+    private parseRequestAndHeaders(lines: string[], start: number, ast: AST): number {
         // 变量：firstLine，用于存储first行。
         const firstLine = lines[start];
         // 变量：requestLine，用于存储请求行。
@@ -108,7 +108,7 @@ export class VhtParser {
      * @returns 返回 number 类型结果。
      * 返回值示例：const count = parseScriptBlock([], 1, 'PreScript', ast); // 1
      */
-    private parseScriptBlock(lines: string[], start: number, type: 'PreScript' | 'PostScript', ast: VhtAST): number {
+    private parseScriptBlock(lines: string[], start: number, type: 'PreScript' | 'PostScript', ast: AST): number {
         // 变量：current，用于存储current。
         let current = start + 1;
         // 变量：contentStart，用于存储内容start。
@@ -145,7 +145,7 @@ export class VhtParser {
      * @returns 返回 number 类型结果。
      * 返回值示例：const count = parseBodyBlock([], 1, ast); // 1
      */
-    private parseBodyBlock(lines: string[], start: number, ast: VhtAST): number {
+    private parseBodyBlock(lines: string[], start: number, ast: AST): number {
         // 变量：current，用于存储current。
         let current = start;
         // 变量：contentStart，用于存储内容start。
@@ -193,7 +193,7 @@ export class VhtParser {
      * @returns 返回 VhtAST 类型结果。
      * 返回值示例：const result = createAst(); // { ok: true }
      */
-    private createAst(): VhtAST {
+    private createAst(): AST {
         return {
             nodes: [],
             errors: [],
@@ -236,7 +236,7 @@ export class VhtParser {
      * @returns 返回布尔值；true 表示条件成立，false 表示条件不成立。
      * 返回值示例：const ok = isRequestStart([], 1, ast); // true
      */
-    private isRequestStart(lines: string[], index: number, ast: VhtAST): boolean {
+    private isRequestStart(lines: string[], index: number, ast: AST): boolean {
         // 变量：line，用于存储行。
         const line = lines[index];
         // 变量：trimmed，用于存储trimmed。
@@ -305,7 +305,7 @@ export class VhtParser {
      * @returns 无返回值，通过副作用完成处理。
      * 返回值示例：pushMissingBlankLineError(ast, 1, 1, 'demo-value'); // undefined
      */
-    private pushMissingBlankLineError(ast: VhtAST, line: number, length: number, token: string): void {
+    private pushMissingBlankLineError(ast: AST, line: number, length: number, token: string): void {
         ast.errors.push({
             range: this.createRange(line, 0, line, length),
             message: `语法错误: 在拦截器 "${token}" 之前缺少必要的空行。`
@@ -321,7 +321,7 @@ export class VhtParser {
      * @returns 无返回值，通过副作用完成处理。
      * 返回值示例：pushInvalidHeaderError(ast, 1, 1); // undefined
      */
-    private pushInvalidHeaderError(ast: VhtAST, line: number, length: number): void {
+    private pushInvalidHeaderError(ast: AST, line: number, length: number): void {
         ast.errors.push({
             range: this.createRange(line, 0, line, length),
             message: "无效的 Header 格式，预期为 'Key: Value'。"
@@ -336,7 +336,7 @@ export class VhtParser {
      * @returns 无返回值，通过副作用完成处理。
      * 返回值示例：collectVariables('demo-value', ast); // undefined
      */
-    private collectVariables(text: string, ast: VhtAST): void {
+    private collectVariables(text: string, ast: AST): void {
         // 变量：lineStarts，用于存储行starts。
         const lineStarts = this.buildLineStartOffsets(text);
 

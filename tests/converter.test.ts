@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
-import { VhtParser } from '../src/core/vht/parser';
-import { VhtConverter } from '../src/core/vht/converter';
+import { Parser } from '../src/core/vht/engine/parser';
+import { Converter } from '../src/core/vht/engine/converter';
 
 vi.mock('vscode', () => {
       return {
@@ -21,8 +21,8 @@ vi.mock('vscode', () => {
 });
 
 describe('VhtConverter AST 转换测试', () => {
-      const parser = new VhtParser();
-      const converter = new VhtConverter();
+      const parser = new Parser();
+      const converter = new Converter();
 
       it('应该优先使用结构化 sections 转换 AST', () => {
             const code = `POST http://localhost:3000/user

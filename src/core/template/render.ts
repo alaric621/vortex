@@ -1,4 +1,4 @@
-import { resolveVariableExpression, type VariableResolution } from "./vht/variableExpression";
+import { resolveVariableExpression, type VariableResolution } from "../vht/engine/variableExpression";
 
 /**
  * 方法：resolveRenderExpression

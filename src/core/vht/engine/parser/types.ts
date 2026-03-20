@@ -19,7 +19,7 @@ export interface ASTNode {
     data?: any;        // 结构化数据，例如 { method: 'GET', url: '...' }
 }
 
-export interface VhtSections {
+export interface Sections {
     request?: ASTNode;
     headers: ASTNode[];
     body?: ASTNode;
@@ -29,17 +29,17 @@ export interface VhtSections {
     };
 }
 
-export interface VhtVariableNode {
+export interface VariableNode {
     expression: string;
     raw: string;
     range: Range;
 }
 
-export interface VhtAST {
-    nodes: ASTNode[];
-    errors: { range: Range; message: string }[];
-    sections: VhtSections;
-    variables: VhtVariableNode[];
+export interface AST {
+  nodes: ASTNode[];
+  errors: { range: Range; message: string }[];
+  sections: Sections;
+  variables: VariableNode[];
 }
 
 /**

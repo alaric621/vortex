@@ -1,5 +1,5 @@
-import { ASTNode, VhtAST } from '../parser/types';
-import { VhtDiagnosticIssue } from './types';
+import { ASTNode, AST } from '../parser/types';
+import { DiagnosticIssue } from './types';
 
 // 变量：ALLOWED_METHODS，用于存储allowedmethods。
 const ALLOWED_METHODS = new Set([
@@ -15,9 +15,9 @@ const ALLOWED_METHODS = new Set([
  * @returns 返回 VhtDiagnosticIssue[] 列表。
  * 返回值示例：const list = collectRequestIssues(ast, 'demo-value'); // [{ id: 'demo' }]
  */
-export function collectRequestIssues(ast: VhtAST, text: string): VhtDiagnosticIssue[] {
+export function collectRequestIssues(ast: AST, text: string): DiagnosticIssue[] {
     // 变量：issues，用于存储issues。
-    const issues: VhtDiagnosticIssue[] = [];
+    const issues: DiagnosticIssue[] = [];
     // 变量：requestNode，用于存储请求节点。
     const requestNode = ast.sections.request;
 

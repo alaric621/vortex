@@ -1,11 +1,11 @@
 import * as vscode from "vscode";
 import { getHeaderCompletions, isInHeaderSection } from "./header";
-import { findNodeAtPosition } from "../parser/types";
+import { findNodeAtPosition } from "../engine/parser/types";
 import { getRequestLineCompletions, isInRequestLine } from "./requestLine";
 import { getVariableCompletions } from "./variable";
-import { DocumentAstCache } from "../parser/documentAstCache";
+import { DocumentAstCache } from "../documentAstCache";
 
-export class VhtCompletionProvider implements vscode.CompletionItemProvider {
+export class CompletionProvider implements vscode.CompletionItemProvider {
   constructor(private readonly astCache: DocumentAstCache = new DocumentAstCache()) {}
 
   /**

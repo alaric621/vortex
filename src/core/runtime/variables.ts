@@ -1,8 +1,8 @@
 import type * as vscode from "vscode";
-import type { Collections } from "../../typings/filesystem";
-import { createMutableBaseVhtVariables, setRuntimeVhtVariables } from "../context";
-import { createHookConsole } from "./client/log";
-import { runHookStrict } from "./runHook";
+import type { Collections } from "../../../typings/filesystem";
+import { createMutableBaseVhtVariables, setRuntimeVhtVariables } from "../../context";
+import { createHookConsole } from "../client/log";
+import { runHookStrict } from "../hooks/runHook";
 
 /**
  * 方法：prepareRuntimeVariables
