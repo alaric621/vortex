@@ -15,6 +15,13 @@ vi.mock("vscode", () => ({
     dispose(): void {
       this.fn();
     }
+  },
+  window: {
+    createOutputChannel: () => ({
+      appendLine: () => undefined,
+      show: () => undefined,
+      clear: () => undefined
+    })
   }
 }));
 
@@ -256,6 +263,71 @@ describe("client 请求执行", () => {
     }
   });
 
+  it("reports websocket events via onEvent callback", async () => {
+    class EventWebSocket {
+      public static readonly OPEN = 1;
+      public readonly CLOSING = 2;
+      public readonly CLOSED = 3;
+      public readyState = EventWebSocket.OPEN;
+      private readonly listeners = new Map<string, Array<(event?: any) => void>>();
+
+      constructor(public readonly url: string) {
+        setTimeout(() => this.emit("open"), 0);
+        setTimeout(() => this.emit("message", { data: "ping" }), 5);
+        setTimeout(() => this.close(1000, "done"), 10);
+      }
+
+      addEventListener(type: string, listener: (event?: any) => void): void {
+        const handlers = this.listeners.get(type) ?? [];
+        handlers.push(listener);
+        this.listeners.set(type, handlers);
+      }
+
+      send(_data: string): void {}
+
+      close(code = 1000, reason = "closed"): void {
+        this.readyState = this.CLOSED;
+        this.emit("close", { code, reason });
+      }
+
+      private emit(type: string, event?: any): void {
+        for (const listener of this.listeners.get(type) ?? []) {
+          listener(event);
+        }
+      }
+    }
+
+    const runtimeGlobal = globalThis as unknown as { WebSocket?: typeof EventWebSocket };
+    const previousWebSocket = runtimeGlobal.WebSocket;
+    runtimeGlobal.WebSocket = EventWebSocket;
+
+    try {
+      const seen: string[] = [];
+      await clientHttp(
+        "req_ws_hook",
+        {
+          id: "req_ws_hook",
+          type: "WEBSOCKET",
+          name: "ws-hook",
+          folder: "/",
+          url: "http://example.test/socket",
+          headers: {},
+          body: ""
+        },
+        undefined,
+        {
+          onEvent(event) {
+            seen.push(String(event.events?.[0] ?? ""));
+          }
+        }
+      );
+
+      expect(seen).toEqual(["ping"]);
+    } finally {
+      runtimeGlobal.WebSocket = previousWebSocket;
+    }
+  });
+
   it("rejects websocket requests that close abnormally", async () => {
     class FailingWebSocket {
       public static readonly OPEN = 1;
@@ -418,6 +490,40 @@ describe("client 请求执行", () => {
       ok: true,
       events: ["first line\nsecond line"]
     });
+  });
+
+  it("notifies onEvent for each SSE message", async () => {
+    const server = http.createServer((_req, res) => {
+      res.writeHead(200, { "Content-Type": "text/event-stream" });
+      res.write("data: first\n\n");
+      res.write("data: second\n\n");
+      res.end();
+    });
+    servers.push(server);
+    const port = await listen(server);
+
+    const seen: string[] = [];
+    const result = await clientHttp(
+      "req_sse_event",
+      {
+        id: "req_sse_event",
+        type: "SSE",
+        name: "sse-event",
+        folder: "/",
+        url: `http://127.0.0.1:${port}/events`,
+        headers: {},
+        body: ""
+      },
+      undefined,
+      {
+        onEvent(event) {
+          seen.push(String(event.events?.[0] ?? ""));
+        }
+      }
+    );
+
+    expect(seen).toEqual(["first", "second"]);
+    expect(result.events).toEqual(["first", "second"]);
   });
 
   it("stops inflight requests through registered stop handlers", async () => {

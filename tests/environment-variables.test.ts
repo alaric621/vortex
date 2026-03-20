@@ -67,6 +67,13 @@ vi.mock("vscode", () => {
       getWorkspaceFolder(uri: { fsPath: string }) {
         return vscodeState.workspaceFolders.find(folder => uri.fsPath.startsWith(folder.uri.fsPath));
       }
+    },
+    window: {
+      createOutputChannel: vi.fn(() => ({
+        appendLine: vi.fn(),
+        show: vi.fn(),
+        clear: vi.fn()
+      }))
     }
   };
 });
@@ -81,7 +88,7 @@ import {
 } from "../src/context";
 import { prepareRuntimeVariables } from "../src/core/runtimeVariables";
 import { VhtParser } from "../src/core/vht/parser";
-import { getVariableCompletions } from "../src/core/vht/variableCompletion";
+import { getVariableCompletions } from "../src/core/vht/completion/variable";
 import { collectDiagnosticIssues } from "../src/core/vht/diagnosticsRules";
 
 describe("workspace environment variables", () => {

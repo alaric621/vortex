@@ -4,7 +4,6 @@ import { VhtParser } from "../vht/parser";
 import {
   getDirContent,
   getStat,
-  collections,
   deleteNode,
   renameNode,
   createItem,
@@ -13,6 +12,7 @@ import {
   updateFile
 } from "./store";
 import { ensureRequestPathWithoutExtension } from "../../utils/path";
+import { globContext } from "../../context";
 
 export class FileSystemProvider implements vscode.FileSystemProvider {
   // 变量：didChangeFileEmitter，用于存储didchange文件emitter。
@@ -77,7 +77,7 @@ export class FileSystemProvider implements vscode.FileSystemProvider {
    */
   private getRequestOrThrow(uri: vscode.Uri) {
     // 变量：request，用于存储请求。
-    const request = getFileContent(collections, this.toRequestPath(uri));
+    const request = getFileContent(globContext.collections, this.toRequestPath(uri));
     if (!request) {
       throw vscode.FileSystemError.FileNotFound(uri);
     }
@@ -105,9 +105,9 @@ export class FileSystemProvider implements vscode.FileSystemProvider {
    * @returns 无返回值，通过副作用完成处理。
    * 返回值示例：resetCollections({ ... }); // undefined
    */
-  private resetCollections(next: typeof collections): void {
-    collections.length = 0;
-    collections.push(...next);
+  private resetCollections(next: typeof globContext.collections): void {
+    globContext.collections.length = 0;
+    globContext.collections.push(...next);
   }
 
   /**
@@ -132,7 +132,7 @@ export class FileSystemProvider implements vscode.FileSystemProvider {
    */
   private getNodeOrThrow(uri: vscode.Uri) {
     // 变量：node，用于存储节点。
-    const node = getStat(collections, this.toRequestPath(uri));
+    const node = getStat(globContext.collections, this.toRequestPath(uri));
     if (!node) {
       throw vscode.FileSystemError.FileNotFound(uri);
     }
@@ -149,7 +149,7 @@ export class FileSystemProvider implements vscode.FileSystemProvider {
    * 返回值示例：assertCreatablePath(uri, 'demo-value'); // undefined
    */
   private assertCreatablePath(uri: vscode.Uri, path: string): void {
-    if (getPathType(collections, path)) {
+    if (getPathType(globContext.collections, path)) {
       throw vscode.FileSystemError.FileExists(uri);
     }
   }
@@ -169,7 +169,7 @@ export class FileSystemProvider implements vscode.FileSystemProvider {
     options: { create: boolean; overwrite: boolean }
   ): "created" | "updated" {
     // 变量：pathType，用于存储路径类型。
-    const pathType = getPathType(collections, path);
+    const pathType = getPathType(globContext.collections, path);
 
     if (pathType === "dir") {
       throw vscode.FileSystemError.FileIsADirectory(uri);
@@ -210,11 +210,11 @@ export class FileSystemProvider implements vscode.FileSystemProvider {
    */
   private saveRequest(path: string, request: ReturnType<VhtConverter["astToJson"]>, mode: "created" | "updated"): void {
     if (mode === "created") {
-      createItem(collections, path, false);
+    createItem(globContext.collections, path, false);
     }
 
     // 变量：updated，用于存储updated。
-    const updated = updateFile(collections, path, {
+    const updated = updateFile(globContext.collections, path, {
       type: request.type,
       url: request.url,
       headers: request.headers,
@@ -227,7 +227,7 @@ export class FileSystemProvider implements vscode.FileSystemProvider {
     }
 
     if (mode === "created") {
-      this.resetCollections(deleteNode(collections, path));
+      this.resetCollections(deleteNode(globContext.collections, path));
     }
 
     throw vscode.FileSystemError.Unavailable(`Failed to update request: ${path}`);
@@ -295,7 +295,7 @@ export class FileSystemProvider implements vscode.FileSystemProvider {
    */
   readDirectory(uri: vscode.Uri): [string, vscode.FileType][] {
     // 变量：contents，用于存储contents。
-    const contents = getDirContent(collections, uri.path);
+    const contents = getDirContent(globContext.collections, uri.path);
     return contents.map((node) => [
       node.name,
       node.nodeType,
@@ -313,7 +313,7 @@ export class FileSystemProvider implements vscode.FileSystemProvider {
     // 变量：fullPath，用于存储full路径。
     const fullPath = this.toRequestPath(uri);
     this.assertCreatablePath(uri, fullPath);
-    createItem(collections, fullPath, true);
+    createItem(globContext.collections, fullPath, true);
     this.fireChange(vscode.FileChangeType.Created, uri);
   }
 
@@ -386,10 +386,10 @@ export class FileSystemProvider implements vscode.FileSystemProvider {
   delete(uri: vscode.Uri, _options: { recursive: boolean }): void {
     // 变量：fullPath，用于存储full路径。
     const fullPath = this.toRequestPath(uri);
-    if (!getPathType(collections, fullPath)) {
+    if (!getPathType(globContext.collections, fullPath)) {
       throw vscode.FileSystemError.FileNotFound(uri);
     }
-    this.resetCollections(deleteNode(collections, fullPath));
+    this.resetCollections(deleteNode(globContext.collections, fullPath));
     this.fireChange(vscode.FileChangeType.Deleted, uri);
   }
 
@@ -407,18 +407,18 @@ export class FileSystemProvider implements vscode.FileSystemProvider {
     // 变量：newPath，用于存储new路径。
     const newPath = this.toRequestPath(newUri);
     // 变量：oldType，用于存储old类型。
-    const oldType = getPathType(collections, oldPath);
+    const oldType = getPathType(globContext.collections, oldPath);
     if (!oldType) {
       throw vscode.FileSystemError.FileNotFound(oldUri);
     }
 
     // 变量：newType，用于存储new类型。
-    const newType = getPathType(collections, newPath);
+    const newType = getPathType(globContext.collections, newPath);
     if (newType && oldPath !== newPath) {
       throw vscode.FileSystemError.FileExists(newUri);
     }
 
-    renameNode(collections, oldPath, newPath);
+    renameNode(globContext.collections, oldPath, newPath);
     this.didChangeFileEmitter.fire([
       { type: vscode.FileChangeType.Deleted, uri: oldUri },
       { type: vscode.FileChangeType.Created, uri: newUri }

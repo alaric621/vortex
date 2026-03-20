@@ -12,8 +12,9 @@ import {
   stopRequest
 } from "./state";
 import { executeSseRequest } from "./sse";
-import { ClientResult, RequestExecution } from "./types";
+import { ClientResult, ClientOptions, RequestExecution } from "./types";
 import { executeWebSocketRequest } from "./websocket";
+import { logRequestError, logRequestResponse, logRequestSend } from "./log";
 
 /**
  * 方法：clientHttp
@@ -27,7 +28,8 @@ import { executeWebSocketRequest } from "./websocket";
 export default async function clientHttp(
   id: string,
   config: Collections,
-  variables: Record<string, unknown> = vhtMockVariables
+  variables: Record<string, unknown> = vhtMockVariables,
+  options?: ClientOptions
 ): Promise<ClientResult> {
   if (isRequestRunning(id)) {
     throw new Error(`Request is already running: ${id}`);
@@ -35,12 +37,18 @@ export default async function clientHttp(
 
   // 变量：request，用于存储请求。
   const request = buildPreparedRequest(id, config, variables);
+  logRequestSend(request);
   // 变量：execution，用于存储execution。
-  const execution = createExecution(request);
+  const execution = createExecution(request, options);
   registerActiveRequest(id, execution.stop);
 
   try {
-    return await execution.promise;
+    const response = await execution.promise;
+    logRequestResponse(request, response);
+    return response;
+  } catch (error) {
+    logRequestError(request, error);
+    throw error;
   } finally {
     clearActiveRequest(id);
   }
@@ -66,13 +74,16 @@ export async function stop(id: string): Promise<void> {
  * @returns 返回 RequestExecution 类型结果。
  * 返回值示例：const result = createExecution(request); // { stop: () => {}, promise: Promise.resolve({ id: 'req_demo', status: 200, ok: true, headers: {}, body: '' }) }
  */
-function createExecution(request: ReturnType<typeof buildPreparedRequest>): RequestExecution {
+function createExecution(
+  request: ReturnType<typeof buildPreparedRequest>,
+  options?: ClientOptions
+): RequestExecution {
   if (request.method === "WEBSOCKET") {
-    return executeWebSocketRequest(request);
+    return executeWebSocketRequest(request, options);
   }
 
   if (request.method === "SSE" || request.method === "EVENTSOURCE") {
-    return executeSseRequest(request);
+    return executeSseRequest(request, options);
   }
 
   return executeHttpRequest(request);

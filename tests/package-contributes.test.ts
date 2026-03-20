@@ -62,17 +62,19 @@ describe("package contributions", () => {
     expect(keybindings.some(item => item.command === "vortex.request.stop" && item.when.includes("resourceExtname == .vht"))).toBe(true);
   });
 
-  it("registers transaction log language and grammar", () => {
+  it("only registers the VHT grammar", () => {
     const languages = packageJson.contributes.languages;
     const grammars = packageJson.contributes.grammars;
 
-    expect(languages.some(language => language.id === "vortex-log")).toBe(true);
+    expect(languages.some(language => language.id === "vht")).toBe(true);
+    expect(languages.some(language => language.id === "vortex-log")).toBe(false);
     expect(
       grammars.some(
-        grammar => grammar.language === "vortex-log"
-          && grammar.scopeName === "source.vortex-log"
-          && grammar.path === "./syntaxes/vortex-log.tmLanguage.json"
+        grammar => grammar.language === "vht"
+          && grammar.scopeName === "source.vht"
+          && grammar.path === "./syntaxes/vht.tmLanguage.json"
       )
     ).toBe(true);
+    expect(grammars.some(grammar => grammar.language === "vortex-log")).toBe(false);
   });
 });

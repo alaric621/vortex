@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
 import clientHttp, { getActiveRequestId, isRequestRunning, stop } from "../core/client";
-import { collections, createItem, getPathType } from "../core/filesystem/store";
+import { createItem, getPathType } from "../core/filesystem/store";
 import {
   basenamePath,
   dirnamePath,
@@ -8,8 +8,10 @@ import {
   joinPath
 } from "../utils/path";
 import { runHookStrict } from "../core/runHook";
+import { createHookConsole } from "../core/client/log";
+import type { ClientResult } from "../core/client/types";
 import { prepareRuntimeVariables } from "../core/runtimeVariables";
-import { setRuntimeVhtVariables } from "../context";
+import { globContext, setRuntimeVhtVariables } from "../context";
 import { buildUri, getParentFolderPath, getResourceUri, isRequestUri, toEntityUri } from "../utils/requestUri";
 import {
   buildCreationTarget,
@@ -98,12 +100,12 @@ async function createNodeCommand(
     return;
   }
 
-  if (getPathType(collections, next.path)) {
+  if (getPathType(globContext.collections, next.path)) {
     showWarning(`目标已存在: ${next.path}`);
     return;
   }
 
-  createItem(collections, next.path, next.isDir);
+    createItem(globContext.collections, next.path, next.isDir);
   explorerProvider.refresh();
 
   if (!next.isDir) {
@@ -223,8 +225,21 @@ async function sendRequestCommand(target?: vscode.TreeItem): Promise<void> {
   try {
     // 变量：variables，用于保存当前流程中的中间状态。
     const variables = await prepareRuntimeVariables(resourceUri, request);
+    const postScript = request.scripts?.post?.trim();
+    const handleEvent = postScript
+      ? (eventResponse: ClientResult) => {
+          void runPostHook(resourceUri, request, variables, eventResponse).catch(error => {
+            showWarning(error instanceof Error ? error.message : String(error));
+          });
+        }
+      : undefined;
     // 变量：response，用于保存当前流程中的中间状态。
-    const response = await clientHttp(request.id, request, variables);
+    const response = await clientHttp(
+      request.id,
+      request,
+      variables,
+      postScript ? { onEvent: handleEvent } : undefined
+    );
     await runPostHook(resourceUri, request, variables, response);
   } catch (error) {
     showWarning(error instanceof Error ? error.message : String(error));
@@ -253,11 +268,13 @@ async function runPostHook(
     return;
   }
 
+  const hookConsole = createHookConsole(request.id);
   await runHookStrict(postScript, {
     client: variables,
     variables,
     request,
-    response
+    response,
+    console: hookConsole
   });
   setRuntimeVhtVariables(resourceUri, variables);
 }

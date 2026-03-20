@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { ASTNode, VhtAST } from './types';
+import { ASTNode, VhtAST } from '../parser/types';
 
 // 变量：REQUEST_METHODS，用于存储请求methods。
 const REQUEST_METHODS = [

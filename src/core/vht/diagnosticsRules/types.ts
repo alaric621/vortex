@@ -1,4 +1,4 @@
-import { Range } from '../types';
+import { Range } from '../parser/types';
 
 export interface VhtDiagnosticIssue {
     range: Range;

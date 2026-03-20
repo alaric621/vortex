@@ -1,7 +1,8 @@
 import * as vscode from "vscode";
-import { collections, getFileContent, getPathType } from "../core/filesystem/store";
+import { getFileContent, getPathType } from "../core/filesystem/store";
 import { ensureRequestPathWithoutExtension, joinPath, normalizePath } from "./path";
 import { buildUri, toRequestUri } from "./requestUri";
+import { globContext } from "../context";
 
 export type RequestSnapshot = NonNullable<ReturnType<typeof getFileContent>>;
 
@@ -14,7 +15,7 @@ export type RequestSnapshot = NonNullable<ReturnType<typeof getFileContent>>;
  */
 export function getRequestByUri(uri: vscode.Uri): RequestSnapshot | undefined {
   const requestPath = ensureRequestPathWithoutExtension(uri.path);
-  return getFileContent(collections, requestPath) ?? undefined;
+  return getFileContent(globContext.collections, requestPath) ?? undefined;
 }
 
 /**
@@ -81,7 +82,7 @@ export async function openRequest(scheme: string, authority: string, path: strin
  * 返回值示例：const ok = canRenameToPath("/users/list", "/users/detail"); // true
  */
 export function canRenameToPath(currentPath: string, nextPath: string): boolean {
-  const existingType = getPathType(collections, nextPath);
+  const existingType = getPathType(globContext.collections, nextPath);
   return !existingType || normalizePath(nextPath) === normalizePath(currentPath);
 }
 

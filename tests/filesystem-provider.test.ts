@@ -62,13 +62,21 @@ vi.mock("vscode", () => {
       Changed: 1,
       Created: 2,
       Deleted: 3
+    },
+    window: {
+      createOutputChannel: vi.fn(() => ({
+        appendLine: vi.fn(),
+        show: vi.fn(),
+        clear: vi.fn()
+      }))
     }
   };
 });
 
 import * as vscode from "vscode";
 import { FileSystemProvider } from "../src/core/filesystem/FileSystemProvider";
-import { collections, virtualFolders } from "../src/core/filesystem/store";
+import { virtualFolders } from "../src/core/filesystem/store";
+import { globContext } from "../src/context";
 
 const seedCollections = [
   {
@@ -99,8 +107,8 @@ const seedCollections = [
 
 describe("FileSystemProvider", () => {
   beforeEach(() => {
-    collections.length = 0;
-    collections.push(...seedCollections.map(item => ({
+    globContext.collections.length = 0;
+    globContext.collections.push(...seedCollections.map(item => ({
       ...item,
       headers: { ...item.headers },
       scripts: { ...item.scripts }
@@ -136,7 +144,7 @@ describe("FileSystemProvider", () => {
 
     provider.writeFile(uri, Buffer.from(updated, "utf8"), { create: false, overwrite: true });
 
-    const request = collections.find(item => item.name === "hello" && item.folder === "/fsa");
+    const request = globContext.collections.find(item => item.name === "hello" && item.folder === "/fsa");
     expect(request?.type).toBe("POST");
     expect(request?.url).toBe("https://example.com/api");
     expect(request?.headers).toEqual({ "Content-Type": "application/json" });
@@ -150,7 +158,7 @@ describe("FileSystemProvider", () => {
   it("rejects writes with parser errors and keeps the existing request intact", () => {
     const provider = new FileSystemProvider();
     const uri = vscode.Uri.parse("vortex-fs://request/fsa/hello.vht");
-    const original = collections.find(item => item.name === "hello" && item.folder === "/fsa");
+    const original = globContext.collections.find(item => item.name === "hello" && item.folder === "/fsa");
 
     expect(() => provider.writeFile(
       uri,
@@ -158,7 +166,7 @@ describe("FileSystemProvider", () => {
       { create: false, overwrite: true }
     )).toThrow("Failed to save request");
 
-    expect(collections.find(item => item.name === "hello" && item.folder === "/fsa")).toEqual(original);
+    expect(globContext.collections.find(item => item.name === "hello" && item.folder === "/fsa")).toEqual(original);
   });
 
   it("rejects invalid new files without leaving a created request behind", () => {
@@ -171,7 +179,7 @@ describe("FileSystemProvider", () => {
       { create: true, overwrite: false }
     )).toThrow("Failed to save request");
 
-    expect(collections.some(item => item.name === "new-broken" && item.folder === "/fsa")).toBe(false);
+    expect(globContext.collections.some(item => item.name === "new-broken" && item.folder === "/fsa")).toBe(false);
   });
 
   it("rejects writes without a request line", () => {

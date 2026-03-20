@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { VhtParser } from '../src/core/vht/parser';
-import { findNodeAtPosition } from '../src/core/vht/types';
+import { findNodeAtPosition } from '../src/core/vht/parser/types';
 
 describe('vht position context', () => {
     const parser = new VhtParser();
-
+    
     it('should treat first-line lowercase method prefix as RequestLine', () => {
         const ast = parser.parse('g');
         const node = findNodeAtPosition(ast.nodes, 0, 0);

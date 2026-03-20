@@ -1,4 +1,4 @@
-import { VhtAST } from '../types';
+import { ASTNode, VhtAST } from '../parser/types';
 import { VhtDiagnosticIssue } from './types';
 
 // 变量：ALLOWED_METHODS，用于存储allowedmethods。
@@ -24,7 +24,7 @@ export function collectRequestIssues(ast: VhtAST, text: string): VhtDiagnosticIs
     // 变量：hasNonEmptyText，用于存储hasnonemptytext。
     const hasNonEmptyText = text.split(/\r?\n/).some(line => line.trim() !== '');
     // 变量：hasNonScriptNode，用于存储hasnonscript节点。
-    const hasNonScriptNode = ast.nodes.some(node => node.type !== 'PreScript' && node.type !== 'PostScript');
+    const hasNonScriptNode = ast.nodes.some((node: ASTNode) => node.type !== 'PreScript' && node.type !== 'PostScript');
 
     if (!requestNode) {
         if (hasNonEmptyText && hasNonScriptNode) {

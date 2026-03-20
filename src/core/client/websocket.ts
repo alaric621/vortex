@@ -1,4 +1,4 @@
-import { PreparedRequest, RequestExecution } from "./types";
+import { ClientOptions, ClientResult, PreparedRequest, RequestExecution } from "./types";
 
 interface RuntimeWebSocket {
   readonly CLOSING: number;
@@ -26,7 +26,10 @@ interface SocketLifecycle {
  * @returns 返回 RequestExecution 类型结果。
  * 返回值示例：const result = executeWebSocketRequest(request); // { stop: () => {}, promise: Promise.resolve({ id: 'req_demo', status: 200, ok: true, headers: {}, body: '' }) }
  */
-export function executeWebSocketRequest(request: PreparedRequest): RequestExecution {
+export function executeWebSocketRequest(
+  request: PreparedRequest,
+  options?: ClientOptions
+): RequestExecution {
   // 变量：socket，用于存储socket。
   const socket = new (getWebSocketConstructor())(toWebSocketUrl(request.url));
   // 变量：events，用于存储events。
@@ -49,7 +52,9 @@ export function executeWebSocketRequest(request: PreparedRequest): RequestExecut
       });
 
       socket.addEventListener("message", event => {
-        events.push(String(getEventData(event)));
+        const payload = String(getEventData(event));
+        events.push(payload);
+        emitWebSocketEvent(payload, request, events, options);
       });
 
       socket.addEventListener("error", () => {
@@ -211,6 +216,33 @@ function toWebSocketUrl(input: string): string {
     url.protocol = "wss:";
   }
   return url.toString();
+}
+
+function emitWebSocketEvent(
+  payload: string,
+  request: PreparedRequest,
+  events: string[],
+  options?: ClientOptions
+): void {
+  const callback = options?.onEvent;
+  if (!callback) {
+    return;
+  }
+
+  const eventResponse: ClientResult = {
+    id: request.id,
+    status: 101,
+    ok: true,
+    headers: {},
+    body: payload,
+    events: [payload],
+    meta: {
+      eventIndex: events.length,
+      eventType: "message"
+    }
+  };
+
+  void callback(eventResponse);
 }
 
 /**

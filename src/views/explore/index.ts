@@ -1,9 +1,10 @@
 import * as vscode from "vscode";
 import { isRequestRunning } from "../../core/client";
-import { getFileContent, collections } from "../../core/filesystem/store";
+import { getFileContent } from "../../core/filesystem/store";
 import { ensureRequestPathWithoutExtension } from "../../utils/path";
 import { FileTreeNode } from "./fileTreeNode";
 import { FolderTreeNode } from "./folderTreeNode";
+import { globContext } from "../../context";
 
 export class ExplorerProvider implements vscode.TreeDataProvider<vscode.TreeItem> {
   // 变量：emitter，用于存储emitter。
@@ -82,7 +83,7 @@ export class ExplorerProvider implements vscode.TreeDataProvider<vscode.TreeItem
    */
   private isRunningRequest(uri: vscode.Uri): boolean {
     // 变量：request，用于存储请求。
-    const request = getFileContent(collections, ensureRequestPathWithoutExtension(uri.path));
+    const request = getFileContent(globContext.collections, ensureRequestPathWithoutExtension(uri.path));
     return Boolean(request?.id && isRequestRunning(request.id));
   }
 }

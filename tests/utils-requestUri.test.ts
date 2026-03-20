@@ -1,5 +1,45 @@
-import { describe, expect, it } from "vitest";
-import { buildUri, getParentFolderPath, getResourceUri, isRequestUri, toEntityUri, toRequestUri } from "../src/utils/requestUri";
+import path from "node:path";
+import { describe, expect, it, vi } from "vitest";
+
+vi.mock("vscode", () => {
+  class Uri {
+    constructor(public scheme: string, public authority: string, public path: string) {}
+    static from(parts: { scheme: string; authority?: string; path: string }): Uri {
+      return new Uri(
+        parts.scheme,
+        parts.authority ?? "",
+        path.posix.normalize(parts.path)
+      );
+    }
+    with(parts: { path?: string }) {
+      return new Uri(this.scheme, this.authority, parts.path ?? this.path);
+    }
+    toString() {
+      return `${this.scheme}://${this.authority}${this.path}`;
+    }
+  }
+
+  return {
+    Uri,
+    window: {
+      activeTextEditor: undefined,
+      createOutputChannel: () => ({
+        appendLine: () => undefined,
+        show: () => undefined,
+        clear: () => undefined
+      })
+    }
+  };
+});
+
+import {
+  buildUri,
+  getParentFolderPath,
+  getResourceUri,
+  isRequestUri,
+  toEntityUri,
+  toRequestUri
+} from "../src/utils/requestUri";
 
 class FakeUri {
   constructor(public scheme: string, public authority: string, public path: string) {}
@@ -21,7 +61,9 @@ describe("requestUri utils", () => {
   it("identifies request uri and entity uri", () => {
     const uri = new FakeUri("vortex-fs", "request", "/team/users.vht");
     expect(isRequestUri(uri as unknown as import("vscode").Uri)).toBe(true);
-    expect(toRequestUri(new FakeUri("vortex-fs", "request", "/team/users") as any).path).toBe("/team/users.vht");
+    expect(toRequestUri(new FakeUri("vortex-fs", "request", "/team/users") as any).path).toBe(
+      "/team/users.vht"
+    );
     expect(toEntityUri(uri as unknown as import("vscode").Uri).path).toBe("/team/users");
   });
 

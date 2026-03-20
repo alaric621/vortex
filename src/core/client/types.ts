@@ -31,6 +31,10 @@ export interface ClientResult {
   meta?: Record<string, unknown>;
 }
 
+export interface ClientOptions {
+  onEvent?: (eventResponse: ClientResult) => void | Promise<void>;
+}
+
 export interface RequestExecution {
   promise: Promise<ClientResult>;
   stop: () => void;

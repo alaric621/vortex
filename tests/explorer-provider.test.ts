@@ -65,6 +65,13 @@ vi.mock("vscode", () => {
       fs: {
         readDirectory: vscodeState.readDirectoryMock
       }
+    },
+    window: {
+      createOutputChannel: () => ({
+        appendLine: vi.fn(),
+        show: vi.fn(),
+        clear: vi.fn()
+      })
     }
   };
 });
@@ -78,14 +85,15 @@ vi.mock("../src/core/client", () => ({
 }));
 
 import { ExplorerProvider } from "../src/views/explore";
-import { collections, virtualFolders } from "../src/core/filesystem/store";
+import { virtualFolders } from "../src/core/filesystem/store";
+import { globContext } from "../src/context";
 
 describe("ExplorerProvider", () => {
   beforeEach(() => {
     vscodeState.readDirectoryMock.mockReset();
     clientMocks.isRequestRunningMock.mockClear();
-    collections.length = 0;
-    collections.push(
+    globContext.collections.length = 0;
+    globContext.collections.push(
       {
         id: "req_team_users",
         type: "GET",

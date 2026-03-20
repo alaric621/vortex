@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { ASTNode, VhtAST } from './types';
+import { ASTNode, VhtAST } from '../parser/types';
 
 // 变量：COMMON_HEADER_KEYS，用于存储commonheaderkeys。
 const COMMON_HEADER_KEYS = [
@@ -321,10 +321,10 @@ function dedupeKeys(keys: string[]): string[] {
  */
 function getExistingHeaderKeys(ast: VhtAST, lineText: string): Set<string> {
     // 变量：keys，用于存储keys。
-    const keys = new Set(
+    const keys = new Set<string>(
         ast.sections.headers
-            .filter(node => node.type === 'Header')
-            .map(node => String(node.data?.key ?? '').toLowerCase())
+            .filter((node: ASTNode) => node.type === 'Header')
+            .map((node: ASTNode) => String(node.data?.key ?? '').toLowerCase())
             .filter(Boolean)
     );
 

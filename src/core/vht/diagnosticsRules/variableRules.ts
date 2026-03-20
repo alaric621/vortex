@@ -1,5 +1,5 @@
 import { getVhtVariables } from '../../../context';
-import { VhtAST } from '../types';
+import { VhtAST } from '../parser/types';
 import { VhtDiagnosticIssue } from './types';
 import { resolveVariableExpression } from '../variableExpression';
 

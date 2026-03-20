@@ -1,7 +1,7 @@
 import * as vscode from "vscode";
 import { getVhtVariables } from "../../context";
 import { resolveRenderExpression } from "../render";
-import { DocumentAstCache } from "./documentAstCache";
+import { DocumentAstCache } from "./parser/documentAstCache";
 import { isVhtEditor } from "../../utils/editor";
 import { rangeContainsPosition, toVsCodeRange } from "../../utils/range";
 

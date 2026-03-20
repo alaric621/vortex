@@ -1,5 +1,5 @@
 import * as vscode from "vscode";
-import type { Range as VhtRange } from "../core/vht/types";
+import type { Range as VhtRange } from "../core/vht/parser/types";
 
 /**
  * 方法：toVsCodeRange

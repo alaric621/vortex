@@ -1,4 +1,4 @@
-import { VhtAST } from './types';
+import { VhtAST } from './parser/types';
 
 /**
  * 这里的 Collections 对应你项目中的数据结构

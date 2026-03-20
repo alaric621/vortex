@@ -1,5 +1,5 @@
 import * as vscode from "vscode";
-import { VhtParser } from "./parser";
+import { VhtParser } from "./index";
 import { VhtAST } from "./types";
 
 interface AstCacheEntry {

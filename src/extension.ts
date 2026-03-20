@@ -1,16 +1,16 @@
 import * as vscode from "vscode";
 import { registerExploreCommands } from "./command/explore";
-import { getFileContent, collections } from "./core/filesystem/store";
+import { getFileContent } from "./core/filesystem/store";
 import { FileSystemProvider } from "./core/filesystem/FileSystemProvider";
 import { isClientBusy, onDidChangeClientState } from "./core/client";
 import { ensureRequestPathWithoutExtension } from "./utils/path";
 import { isVhtEditor } from "./utils/editor";
 import { prepareRuntimeVariables } from "./core/runtimeVariables";
-import { DocumentAstCache } from "./core/vht/documentAstCache";
+import { DocumentAstCache } from "./core/vht/parser/documentAstCache";
 import { VhtCompletionProvider } from "./core/vht/completion";
 import { VhtDiagnostics } from "./core/vht/diagnostics";
 import { VariableDecorator } from "./core/vht/variableDecorator";
-import { onDidChangeVhtVariables, refreshBaseVhtVariables } from "./context";
+import { globContext, onDidChangeVhtVariables, refreshBaseVhtVariables } from "./context";
 import { ExplorerProvider } from "./views/explore";
 
 /**
@@ -23,6 +23,8 @@ import { ExplorerProvider } from "./views/explore";
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
   // 变量：astCache，用于存储语法树缓存。
   const astCache = new DocumentAstCache();
+  console.log(astCache);
+  
   // 变量：diagnostics，用于存储诊断。
   const diagnostics = new VhtDiagnostics(astCache);
   // 变量：decorator，用于存储decorator。
@@ -144,7 +146,6 @@ async function registerClientState(
       if (!editor || (documentUri && editor.document.uri.toString() !== documentUri.toString())) {
         return;
       }
-
       diagnostics.update(editor.document);
       decorator.update(editor);
     })
@@ -204,7 +205,7 @@ function createDocumentSubscriptions(
  */
 async function refreshRuntimeVariables(document: vscode.TextDocument): Promise<void> {
   // 变量：request，用于存储请求。
-  const request = getFileContent(collections, ensureRequestPathWithoutExtension(document.uri.path));
+    const request = getFileContent(globContext.collections, ensureRequestPathWithoutExtension(document.uri.path));
   if (!request) {
     return;
   }

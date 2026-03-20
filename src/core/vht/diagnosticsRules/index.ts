@@ -1,4 +1,4 @@
-import { VhtAST } from '../types';
+import { VhtAST } from '../parser/types';
 import { collectBodyIssues } from './bodyRules';
 import { collectHeaderIssues } from './headerRules';
 import { collectRequestIssues } from './requestRules';

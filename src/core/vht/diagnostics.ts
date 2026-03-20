@@ -2,9 +2,9 @@ import * as vscode from "vscode";
 import { getVhtVariables } from "../../context";
 import { collectDiagnosticIssues } from "./diagnosticsRules";
 import { VhtDiagnosticIssue } from "./diagnosticsRules/types";
-import { DocumentAstCache } from "./documentAstCache";
+import { DocumentAstCache } from "./parser/documentAstCache";
 import { toVsCodeRange } from "../../utils/range";
-import { Range as VhtRange } from "./types";
+import { Range as VhtRange } from "./parser/types";
 
 export class VhtDiagnostics {
   // 变量：collection，用于存储collection。

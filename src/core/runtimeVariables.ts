@@ -1,6 +1,7 @@
 import type * as vscode from "vscode";
 import type { Collections } from "../../typings/filesystem";
 import { createMutableBaseVhtVariables, setRuntimeVhtVariables } from "../context";
+import { createHookConsole } from "./client/log";
 import { runHookStrict } from "./runHook";
 
 /**
@@ -28,10 +29,12 @@ export async function prepareRuntimeVariables(
   }
 
   try {
+    const hookConsole = createHookConsole(runtimeRequest.id);
     await runHookStrict(runtimeRequest.scripts.pre, {
       client: variables,
       variables,
-      request: runtimeRequest
+      request: runtimeRequest,
+      console: hookConsole
     });
     setRuntimeState(documentUri, variables);
     return variables;

@@ -53,7 +53,12 @@ vi.mock("vscode", () => {
     },
     window: {
       showWarningMessage: vi.fn(),
-      activeTextEditor: undefined
+      activeTextEditor: undefined,
+      createOutputChannel: vi.fn(() => ({
+        appendLine: vi.fn(),
+        show: vi.fn(),
+        clear: vi.fn()
+      }))
     }
   };
 });
@@ -71,8 +76,8 @@ vi.mock("../src/context", () => ({
 }));
 
 import * as vscode from "vscode";
-import { getVariableCompletions } from "../src/core/vht/variableCompletion";
-import type { VhtAST } from "../src/core/vht/types";
+import { getVariableCompletions } from "../src/core/vht/completion/variable";
+import type { VhtAST } from "../src/core/vht/parser/types";
 import { getVhtVariables } from "../src/context";
 
 class FakeDocument {

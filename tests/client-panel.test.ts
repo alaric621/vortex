@@ -39,7 +39,7 @@ describe("client output channel", () => {
 
     expect(first).toBe(second);
     expect(vscodeState.createOutputChannel).toHaveBeenCalledTimes(1);
-    expect(vscodeState.createOutputChannel).toHaveBeenCalledWith("Vortex", "vortex-log");
+    expect(vscodeState.createOutputChannel).toHaveBeenCalledWith("Vortex", "plaintext");
     expect(vscodeState.outputChannel.appendLine).toHaveBeenCalledWith("[send] GET hello");
     expect(vscodeState.outputChannel.show).toHaveBeenCalledWith(true);
     expect(vscodeState.outputChannel.clear).toHaveBeenCalledTimes(1);

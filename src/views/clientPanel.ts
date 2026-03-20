@@ -9,7 +9,7 @@ export interface ClientLogView {
 // 变量：CLIENT_OUTPUT_CHANNEL_NAME，用于存储客户端输出channel名称。
 const CLIENT_OUTPUT_CHANNEL_NAME = "Vortex";
 // 变量：CLIENT_OUTPUT_LANGUAGE_ID，用于存储客户端输出languageid。
-const CLIENT_OUTPUT_LANGUAGE_ID = "vortex-log";
+const CLIENT_OUTPUT_LANGUAGE_ID = "log";
 
 // 变量：clientOutputChannel，用于存储客户端输出channel。
 let clientOutputChannel: vscode.OutputChannel | undefined;

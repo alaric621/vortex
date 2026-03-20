@@ -1,4 +1,4 @@
-import { VhtAST } from '../types';
+import { VhtAST } from '../parser/types';
 import { VhtDiagnosticIssue } from './types';
 
 type HeaderValueValidator = (value: string) => boolean;

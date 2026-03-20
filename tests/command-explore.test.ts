@@ -41,7 +41,12 @@ vi.mock("vscode", () => {
     window: {
       showInputBox: vscodeMocks.showInputBoxMock,
       showWarningMessage: vscodeMocks.showWarningMessageMock,
-      activeTextEditor: undefined
+      activeTextEditor: undefined,
+      createOutputChannel: vi.fn(() => ({
+        appendLine: vi.fn(),
+        show: vi.fn(),
+        clear: vi.fn()
+      }))
     }
   };
 });
@@ -76,7 +81,8 @@ vi.mock("../src/core/runHook", () => ({
 
 import * as vscode from "vscode";
 import { registerExploreCommands } from "../src/command/explore";
-import { collections, virtualFolders } from "../src/core/filesystem/store";
+import { virtualFolders } from "../src/core/filesystem/store";
+import { globContext } from "../src/context";
 import { clearRuntimeVhtVariables, getVhtVariables } from "../src/context";
 
 const seedCollections = [
@@ -137,8 +143,8 @@ describe("registerExploreCommands", () => {
     fsProvider.delete.mockReset();
     explorerProvider.refresh.mockReset();
     (vscode.window as any).activeTextEditor = undefined;
-    collections.length = 0;
-    collections.push(...seedCollections.map(item => ({
+    globContext.collections.length = 0;
+    globContext.collections.push(...seedCollections.map(item => ({
       ...item,
       headers: { ...item.headers },
       scripts: { ...item.scripts }
@@ -174,7 +180,7 @@ describe("registerExploreCommands", () => {
 
     await create();
 
-    expect(collections.some(item => item.name === "new-request" && item.folder === "/")).toBe(true);
+    expect(globContext.collections.some(item => item.name === "new-request" && item.folder === "/")).toBe(true);
     expect(explorerProvider.refresh).toHaveBeenCalledTimes(1);
     expect(vscodeMocks.executeCommandMock).toHaveBeenCalledWith(
       "vscode.open",
@@ -195,7 +201,7 @@ describe("registerExploreCommands", () => {
   it("renames a request node via the filesystem provider", async () => {
     vscodeMocks.showInputBoxMock.mockResolvedValue("members");
     fsProvider.rename.mockImplementation((oldUri, newUri) => {
-      const item = collections.find(entry => entry.name === "users" && entry.folder === "/team");
+      const item = globContext.collections.find(entry => entry.name === "users" && entry.folder === "/team");
       if (item) {
         item.name = "members";
         item.folder = "/team";
@@ -209,7 +215,7 @@ describe("registerExploreCommands", () => {
     });
 
     expect(fsProvider.rename).toHaveBeenCalled();
-    expect(collections.some(item => item.name === "members" && item.folder === "/team")).toBe(true);
+    expect(globContext.collections.some(item => item.name === "members" && item.folder === "/team")).toBe(true);
     expect(vscodeMocks.executeCommandMock).toHaveBeenCalledWith(
       "vscode.open",
       expect.objectContaining({ path: "/team/members.vht" })
@@ -231,7 +237,7 @@ describe("registerExploreCommands", () => {
   });
 
   it("sends the selected request payload", async () => {
-    const request = collections.find(item => item.id === "req_team_users");
+    const request = globContext.collections.find(item => item.id === "req_team_users");
     if (request) {
       request.scripts = { pre: "console.log('pre')", post: "console.log('post')" };
     }
@@ -275,6 +281,9 @@ describe("registerExploreCommands", () => {
         client: expect.objectContaining({
           token: "demo-token"
         })
+      }),
+      expect.objectContaining({
+        onEvent: expect.any(Function)
       })
     );
     expect(hookMocks.runHookStrictMock).toHaveBeenNthCalledWith(
@@ -304,7 +313,7 @@ describe("registerExploreCommands", () => {
   });
 
   it("does not execute post hook when send fails", async () => {
-    const request = collections.find(item => item.id === "req_team_users");
+    const request = globContext.collections.find(item => item.id === "req_team_users");
     if (request) {
       request.scripts = { pre: "console.log('pre')", post: "console.log('post')" };
     }
@@ -330,7 +339,7 @@ describe("registerExploreCommands", () => {
   });
 
   it("executes post hook once after successful send", async () => {
-    const request = collections.find(item => item.id === "req_team_users");
+    const request = globContext.collections.find(item => item.id === "req_team_users");
     if (request) {
       request.scripts = { pre: "console.log('pre')", post: "console.log('post')" };
     }
@@ -367,7 +376,7 @@ describe("registerExploreCommands", () => {
   });
 
   it("persists hook variable mutations into runtime context", async () => {
-    const request = collections.find(item => item.id === "req_team_users");
+    const request = globContext.collections.find(item => item.id === "req_team_users");
     if (request) {
       request.headers = {
         Authorization: "{{client.name}}"
@@ -402,7 +411,8 @@ describe("registerExploreCommands", () => {
       expect.anything(),
       expect.objectContaining({
         name: "hello"
-      })
+      }),
+      undefined
     );
     expect(getVhtVariables(resourceUri)).toEqual(
       expect.objectContaining({

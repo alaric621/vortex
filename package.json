@@ -14,7 +14,12 @@
     "onLanguage:vht",
     "onView:vortex-explorer",
     "onFileSystem:vortex-fs",
-    "onCommand:vortex.request.create"
+    "onCommand:vortex.request.refresh",
+    "onCommand:vortex.request.create",
+    "onCommand:vortex.request.rename",
+    "onCommand:vortex.request.delete",
+    "onCommand:vortex.request.send",
+    "onCommand:vortex.request.stop"
   ],
   "main": "./dist/extension.js",
   "scripts": {
@@ -147,12 +152,6 @@
           ".vht"
         ],
         "configuration": "./syntaxes/vht.language-configuration.json"
-      },
-      {
-        "id": "vortex-log",
-        "aliases": [
-          "Vortex Log"
-        ]
       }
     ],
     "grammars": [
@@ -164,11 +163,6 @@
           "meta.embedded.inline.javascript": "javascript",
           "hook.block.javascript": "javascript"
         }
-      },
-      {
-        "language": "vortex-log",
-        "scopeName": "source.vortex-log",
-        "path": "./syntaxes/vortex-log.tmLanguage.json"
       }
     ],
     "keybindings": [

@@ -33,12 +33,17 @@ vi.mock("vscode", () => {
     },
     window: {
       showWarningMessage: vscodeMocks.showWarningMessage,
-      activeTextEditor: undefined
+      activeTextEditor: undefined,
+      createOutputChannel: vi.fn(() => ({
+        appendLine: vi.fn(),
+        show: vi.fn(),
+        clear: vi.fn()
+      }))
     }
   };
 });
 
-import { collections } from "../src/core/filesystem/store";
+import { globContext } from "../src/context";
 import {
   buildCreationTarget,
   canRenameToPath,
@@ -83,8 +88,8 @@ function createUri(path: string): vscode.Uri {
 
 describe("utils/explore", () => {
   beforeEach(() => {
-    collections.length = 0;
-    collections.push(...seedCollections.map(item => ({
+    globContext.collections.length = 0;
+    globContext.collections.push(...seedCollections.map(item => ({
       ...item,
       headers: { ...item.headers },
       scripts: { ...item.scripts }

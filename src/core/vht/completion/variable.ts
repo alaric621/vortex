@@ -1,8 +1,8 @@
 import * as vscode from 'vscode';
-import { getVhtVariables } from '../../context';
-import { rangeContainsPosition, toVsCodeRange } from '../../utils/range';
-import { VhtAST } from './types';
-import { resolveVariableExpression } from './variableExpression';
+import { getVhtVariables } from '../../../context';
+import { rangeContainsPosition, toVsCodeRange } from '../../../utils/range';
+import { VhtAST } from '../parser/types';
+import { resolveVariableExpression } from '../variableExpression';
 
 type CompletionSuggestion = { label: string; insertText: string; detail: string };
 
