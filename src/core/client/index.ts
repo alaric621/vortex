@@ -1,5 +1,5 @@
 import { Collections } from "../../../typings/filesystem";
-import { vhtMockVariables } from "../../env";
+import { vhtMockVariables } from "../../context";
 import { executeHttpRequest } from "./http";
 import { buildPreparedRequest } from "./request";
 import {
@@ -15,6 +15,15 @@ import { executeSseRequest } from "./sse";
 import { ClientResult, RequestExecution } from "./types";
 import { executeWebSocketRequest } from "./websocket";
 
+/**
+ * 方法：clientHttp
+ * 说明：执行 clientHttp 相关处理逻辑。
+ * @param id 参数 id。
+ * @param config 参数 config。
+ * @param variables 参数 variables。
+ * @returns 异步返回 ClientResult 类型结果。
+ * 返回值示例：const result = await clientHttp('demo-value', item, { token: 'abc' }); // { ok: true }
+ */
 export default async function clientHttp(
   id: string,
   config: Collections,
@@ -24,7 +33,9 @@ export default async function clientHttp(
     throw new Error(`Request is already running: ${id}`);
   }
 
+  // 变量：request，用于存储请求。
   const request = buildPreparedRequest(id, config, variables);
+  // 变量：execution，用于存储execution。
   const execution = createExecution(request);
   registerActiveRequest(id, execution.stop);
 
@@ -37,10 +48,24 @@ export default async function clientHttp(
 
 export { getActiveRequestId, isClientBusy, isRequestRunning, onDidChangeClientState };
 
+/**
+ * 方法：stop
+ * 说明：执行 stop 相关处理逻辑。
+ * @param id 参数 id。
+ * @returns 异步完成后无返回值。
+ * 返回值示例：await stop('demo-value'); // undefined
+ */
 export async function stop(id: string): Promise<void> {
   await stopRequest(id);
 }
 
+/**
+ * 方法：createExecution
+ * 说明：执行 createExecution 相关处理逻辑。
+ * @param request 参数 request。
+ * @returns 返回 RequestExecution 类型结果。
+ * 返回值示例：const result = createExecution(request); // { stop: () => {}, promise: Promise.resolve({ id: 'req_demo', status: 200, ok: true, headers: {}, body: '' }) }
+ */
 function createExecution(request: ReturnType<typeof buildPreparedRequest>): RequestExecution {
   if (request.method === "WEBSOCKET") {
     return executeWebSocketRequest(request);

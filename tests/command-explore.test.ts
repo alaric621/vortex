@@ -76,8 +76,8 @@ vi.mock("../src/core/runHook", () => ({
 
 import * as vscode from "vscode";
 import { registerExploreCommands } from "../src/command/explore";
-import { collections, virtualFolders } from "../src/core/filesystem/context";
-import { clearRuntimeVhtVariables, getVhtVariables } from "../src/env";
+import { collections, virtualFolders } from "../src/core/filesystem/store";
+import { clearRuntimeVhtVariables, getVhtVariables } from "../src/context";
 
 const seedCollections = [
   {

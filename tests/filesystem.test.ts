@@ -3,8 +3,9 @@ import {
   updateFile, 
   deleteNode, 
   renameNode, 
-  createItem
-} from "../src/core/filesystem/context";
+  createItem,
+  getFileContent
+} from "../src/core/filesystem/store";
 import { Collections } from "../typings/filesystem";
 
 describe("FileSystem Logic Integration Tests", () => {
@@ -90,5 +91,17 @@ describe("FileSystem Logic Integration Tests", () => {
     const newItem = testData.find(i => i.name === "new_request");
     expect(newItem?.folder).toBe("/team");
     expect(newItem?.id).toMatch(/^req_/);
+  });
+
+  it("should return a deep-cloned file content snapshot", () => {
+    const file = getFileContent(testData, "/fsa/hello");
+
+    expect(file).not.toBeNull();
+    file!.headers!.Authorization = "Bearer changed";
+    file!.scripts!.pre = "console.log('changed')";
+
+    const original = testData.find(i => i.id === "req_mmtjmybx_fnqqjz");
+    expect(original?.headers?.Authorization).toBeUndefined();
+    expect(original?.scripts?.pre).toBe("");
   });
 });

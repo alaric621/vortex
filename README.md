@@ -51,7 +51,7 @@ npm run compile
 ```text
 src/
  ├── 🌐 extension.ts           # 扩展生命周期入口
- ├── 📋 env.ts                 # 变量源 (vhtMockVariables)
+ ├── 📋 context.ts             # 变量源 (vhtMockVariables)
  ├── ⚙️ core/
  │    ├── 📂 filesystem/       # 虚拟文件系统 (VFS) 逻辑
  │    └── 📝 vht/              # VHT 引擎 (解析、补全、诊断)
@@ -134,7 +134,7 @@ console.log('响应后置处理')
 | 🔌 命令与工作流 | `create/rename/delete/send/stop` 命令在 `package.json` 已声明，但未在 `extension.ts` 完整注册处理器 | 相关操作在运行时不可用或无效 | 仅使用已接入的 `vortex.request.refresh` | 🚧 处理中 |
 | 🌐 请求运行时 | `core/client/index.ts` 的 `send/stop` 为占位实现 | 无法发起真实 HTTP / WS / SSE 请求 | 使用解析、补全、诊断能力进行离线编辑 | 📅 待开发 |
 | 🌐 虚拟文件系统 | `readFile/writeFile` 仍为 Mock 逻辑 | 请求内容读写链路不完整 | 当前以目录浏览和节点管理为主 | 🚧 处理中 |
-| 🌍 环境与变量 | 变量来源仍是 `src/env.ts` 的 `vhtMockVariables` | 不支持工作区级环境切换 | 通过修改 `src/env.ts` 模拟环境数据 | 🚧 Mock 阶段 |
+| 🌍 环境与变量 | 变量来源仍是 `src/context.ts` 的 `vhtMockVariables` | 不支持工作区级环境切换 | 通过修改 `src/context.ts` 模拟环境数据 | 🚧 Mock 阶段 |
 
 ---
 

@@ -256,6 +256,113 @@ describe("client 请求执行", () => {
     }
   });
 
+  it("rejects websocket requests that close abnormally", async () => {
+    class FailingWebSocket {
+      public static readonly OPEN = 1;
+      public readonly CLOSING = 2;
+      public readonly CLOSED = 3;
+      public readyState = FailingWebSocket.OPEN;
+      private readonly listeners = new Map<string, Array<(event?: any) => void>>();
+
+      constructor(_url: string) {
+        setTimeout(() => this.emit("open"), 0);
+        setTimeout(() => this.close(1011, "server error"), 5);
+      }
+
+      addEventListener(type: string, listener: (event?: any) => void): void {
+        const handlers = this.listeners.get(type) ?? [];
+        handlers.push(listener);
+        this.listeners.set(type, handlers);
+      }
+
+      send(_data: string): void {}
+
+      close(code = 1000, reason = "closed"): void {
+        this.readyState = this.CLOSED;
+        this.emit("close", { code, reason });
+      }
+
+      private emit(type: string, event?: any): void {
+        for (const listener of this.listeners.get(type) ?? []) {
+          listener(event);
+        }
+      }
+    }
+
+    const runtimeGlobal = globalThis as unknown as { WebSocket?: typeof FailingWebSocket };
+    const previousWebSocket = runtimeGlobal.WebSocket;
+    runtimeGlobal.WebSocket = FailingWebSocket;
+
+    try {
+      await expect(clientHttp("req_ws_fail", {
+        id: "req_ws_fail",
+        type: "WEBSOCKET",
+        name: "ws-fail",
+        folder: "/",
+        url: "http://example.test/socket",
+        headers: {},
+        body: ""
+      })).rejects.toThrow("WebSocket closed unexpectedly (1011): server error");
+    } finally {
+      runtimeGlobal.WebSocket = previousWebSocket;
+    }
+  });
+
+  it("rejects websocket requests when stopped by user", async () => {
+    class StoppableWebSocket {
+      public static readonly OPEN = 1;
+      public readonly CLOSING = 2;
+      public readonly CLOSED = 3;
+      public readyState = StoppableWebSocket.OPEN;
+      private readonly listeners = new Map<string, Array<(event?: any) => void>>();
+
+      constructor(_url: string) {
+        setTimeout(() => this.emit("open"), 0);
+      }
+
+      addEventListener(type: string, listener: (event?: any) => void): void {
+        const handlers = this.listeners.get(type) ?? [];
+        handlers.push(listener);
+        this.listeners.set(type, handlers);
+      }
+
+      send(_data: string): void {}
+
+      close(code = 1000, reason = "closed"): void {
+        this.readyState = this.CLOSED;
+        this.emit("close", { code, reason });
+      }
+
+      private emit(type: string, event?: any): void {
+        for (const listener of this.listeners.get(type) ?? []) {
+          listener(event);
+        }
+      }
+    }
+
+    const runtimeGlobal = globalThis as unknown as { WebSocket?: typeof StoppableWebSocket };
+    const previousWebSocket = runtimeGlobal.WebSocket;
+    runtimeGlobal.WebSocket = StoppableWebSocket;
+
+    try {
+      const pending = clientHttp("req_ws_stop", {
+        id: "req_ws_stop",
+        type: "WEBSOCKET",
+        name: "ws-stop",
+        folder: "/",
+        url: "http://example.test/socket",
+        headers: {},
+        body: ""
+      });
+
+      await stop("req_ws_stop");
+
+      await expect(pending).rejects.toThrow("WebSocket request stopped by user.");
+    } finally {
+      runtimeGlobal.WebSocket = previousWebSocket;
+    }
+  });
+
   it.each(["SSE", "EVENTSOURCE"] as const)("supports %s streaming requests", async method => {
     const server = http.createServer((_req, res) => {
       res.writeHead(200, { "Content-Type": "text/event-stream" });
@@ -282,6 +389,34 @@ describe("client 请求执行", () => {
       ok: true,
       body: "",
       events: ["first", "second"]
+    });
+  });
+
+  it("supports multiline SSE events with CRLF separators", async () => {
+    const server = http.createServer((_req, res) => {
+      res.writeHead(200, { "Content-Type": "text/event-stream" });
+      res.write(": keep-alive\r\n");
+      res.write("data: first line\r\n");
+      res.write("data: second line\r\n\r\n");
+      res.end();
+    });
+    servers.push(server);
+    const port = await listen(server);
+
+    const result = await clientHttp("req_sse_multiline", {
+      id: "req_sse_multiline",
+      type: "SSE",
+      name: "sse-multiline",
+      folder: "/",
+      url: `http://127.0.0.1:${port}/events`,
+      headers: {},
+      body: ""
+    });
+
+    expect(result).toMatchObject({
+      status: 200,
+      ok: true,
+      events: ["first line\nsecond line"]
     });
   });
 

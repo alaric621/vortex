@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
-import { runHookStrict } from "../src/core/runHook";
+import { describe, expect, it, vi } from "vitest";
+import { HookExecutor, runHookStrict } from "../src/core/runHook";
 
 describe("hook 脚本执行", () => {
   it("应该通过 scope 注入变量并返回执行结果", async () => {
@@ -63,5 +63,25 @@ describe("hook 脚本执行", () => {
         value: 1
       })
     ).rejects.toThrow("hook failed");
+  });
+
+  it("应该拒绝无效的 scope 变量名", async () => {
+    await expect(
+      runHookStrict("return 1;", {
+        "bad-key": 1
+      })
+    ).rejects.toThrow("Invalid hook scope key: bad-key");
+  });
+
+  it("应该允许注入自定义编译器以便单元测试", async () => {
+    const create = vi.fn((_valueName: string, body: string) => {
+      return async (value: unknown) => `${body}:${String(value)}`;
+    });
+    const executor = new HookExecutor({ create });
+
+    const result = await executor.execute("return value;", { value: 7 });
+
+    expect(create).toHaveBeenCalledTimes(1);
+    expect(result).toBe("\"use strict\";\nreturn value;:7");
   });
 });

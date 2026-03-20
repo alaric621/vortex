@@ -1,16 +1,29 @@
-import { getVhtVariables } from '../../../env';
+import { getVhtVariables } from '../../../context';
 import { VhtAST } from '../types';
 import { VhtDiagnosticIssue } from './types';
 import { resolveVariableExpression } from '../variableExpression';
 
+// 变量：VARIABLE_OPEN，用于存储变量open。
 const VARIABLE_OPEN = '{{';
+// 变量：VARIABLE_CLOSE，用于存储变量close。
 const VARIABLE_CLOSE = '}}';
 
+/**
+ * 方法：collectVariableIssues
+ * 说明：执行 collectVariableIssues 相关处理逻辑。
+ * @param ast 参数 ast。
+ * @param text 参数 text。
+ * @param variables 参数 variables。
+ * @returns 返回 VhtDiagnosticIssue[] 列表。
+ * 返回值示例：const list = collectVariableIssues(ast, 'demo-value', { token: 'abc' }); // [{ id: 'demo' }]
+ */
 export function collectVariableIssues(ast: VhtAST, text: string, variables: Record<string, unknown> = getVhtVariables()): VhtDiagnosticIssue[] {
+    // 变量：issues，用于存储issues。
     const issues: VhtDiagnosticIssue[] = [];
     issues.push(...collectBraceIssues(text));
 
     for (const variable of ast.variables) {
+        // 变量：expression，用于存储表达式。
         const expression = variable.expression.trim();
         if (!expression) {
             issues.push({
@@ -23,6 +36,7 @@ export function collectVariableIssues(ast: VhtAST, text: string, variables: Reco
             continue;
         }
 
+        // 变量：status，用于存储status。
         const status = validateVariableExpression(expression, variables);
         if (status.kind === 'ok') continue;
 
@@ -60,9 +74,19 @@ export function collectVariableIssues(ast: VhtAST, text: string, variables: Reco
     return issues;
 }
 
+/**
+ * 方法：collectBraceIssues
+ * 说明：执行 collectBraceIssues 相关处理逻辑。
+ * @param text 参数 text。
+ * @returns 返回 VhtDiagnosticIssue[] 列表。
+ * 返回值示例：const list = collectBraceIssues('demo-value'); // [{ id: 'demo' }]
+ */
 function collectBraceIssues(text: string): VhtDiagnosticIssue[] {
+    // 变量：issues，用于存储issues。
     const issues: VhtDiagnosticIssue[] = [];
+    // 变量：index，用于存储index。
     let index = 0;
+    // 变量：openStack，用于存储openstack。
     let openStack: number[] = [];
 
     while (index < text.length) {
@@ -72,8 +96,10 @@ function collectBraceIssues(text: string): VhtDiagnosticIssue[] {
             continue;
         }
         if (text.startsWith(VARIABLE_CLOSE, index)) {
+            // 变量：open，用于存储open。
             const open = openStack.pop();
             if (open === undefined) {
+                // 变量：pos，用于存储pos。
                 const pos = offsetToPosition(text, index);
                 issues.push({
                     range: {
@@ -93,6 +119,7 @@ function collectBraceIssues(text: string): VhtDiagnosticIssue[] {
     }
 
     for (const open of openStack) {
+        // 变量：pos，用于存储pos。
         const pos = offsetToPosition(text, open);
         issues.push({
             range: {
@@ -115,7 +142,16 @@ type ValidationResult =
     | { kind: 'invalid-type-access'; message: string }
     | { kind: 'unknown-path'; path: string };
 
+/**
+ * 方法：validateVariableExpression
+ * 说明：执行 validateVariableExpression 相关处理逻辑。
+ * @param expression 参数 expression。
+ * @param vars 参数 vars。
+ * @returns 返回 ValidationResult 类型结果。
+ * 返回值示例：const result = validateVariableExpression('demo-value', { token: 'abc' }); // { ok: true }
+ */
 function validateVariableExpression(expression: string, vars: Record<string, unknown>): ValidationResult {
+    // 变量：resolved，用于存储resolved。
     const resolved = resolveVariableExpression(expression, vars);
     if (resolved.kind === "resolved") {
         return { kind: "ok" };
@@ -129,8 +165,18 @@ function validateVariableExpression(expression: string, vars: Record<string, unk
     return { kind: "unknown-path", path: resolved.path };
 }
 
+/**
+ * 方法：offsetToPosition
+ * 说明：执行 offsetToPosition 相关处理逻辑。
+ * @param text 参数 text。
+ * @param offset 参数 offset。
+ * @returns 返回 { line: number; character: number } 类型结果。
+ * 返回值示例：const result = offsetToPosition('demo-value', 1); // { ok: true }
+ */
 function offsetToPosition(text: string, offset: number): { line: number; character: number } {
+    // 变量：head，用于存储head。
     const head = text.slice(0, offset);
+    // 变量：lines，用于存储lines。
     const lines = head.split('\n');
     return {
         line: lines.length - 1,

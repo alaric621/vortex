@@ -78,7 +78,7 @@ vi.mock("../src/core/client", () => ({
 }));
 
 import { ExplorerProvider } from "../src/views/explore";
-import { collections, virtualFolders } from "../src/core/filesystem/context";
+import { collections, virtualFolders } from "../src/core/filesystem/store";
 
 describe("ExplorerProvider", () => {
   beforeEach(() => {

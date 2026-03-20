@@ -68,7 +68,7 @@ vi.mock("vscode", () => {
 
 import * as vscode from "vscode";
 import { FileSystemProvider } from "../src/core/filesystem/FileSystemProvider";
-import { collections, virtualFolders } from "../src/core/filesystem/context";
+import { collections, virtualFolders } from "../src/core/filesystem/store";
 
 const seedCollections = [
   {
@@ -159,6 +159,19 @@ describe("FileSystemProvider", () => {
     )).toThrow("Failed to save request");
 
     expect(collections.find(item => item.name === "hello" && item.folder === "/fsa")).toEqual(original);
+  });
+
+  it("rejects invalid new files without leaving a created request behind", () => {
+    const provider = new FileSystemProvider();
+    const uri = vscode.Uri.parse("vortex-fs://request/fsa/new-broken.vht");
+
+    expect(() => provider.writeFile(
+      uri,
+      Buffer.from("GET https://example.com\n>>>\nconsole.log('broken')\n", "utf8"),
+      { create: true, overwrite: false }
+    )).toThrow("Failed to save request");
+
+    expect(collections.some(item => item.name === "new-broken" && item.folder === "/fsa")).toBe(false);
   });
 
   it("rejects writes without a request line", () => {

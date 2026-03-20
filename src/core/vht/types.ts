@@ -45,7 +45,17 @@ export interface VhtAST {
 /**
  * 工具函数：根据光标位置查找节点
  */
+/**
+ * 方法：findNodeAtPosition
+ * 说明：执行 findNodeAtPosition 相关处理逻辑。
+ * @param nodes 参数 nodes。
+ * @param line 参数 line。
+ * @param character 参数 character。
+ * @returns 命中时返回 ASTNode，未命中时返回 undefined。
+ * 返回值示例：const result = findNodeAtPosition([], 1, 1); // { ok: true } 或 undefined
+ */
 export function findNodeAtPosition(nodes: ASTNode[], line: number, character: number): ASTNode | undefined {
+    // 变量：matched，用于存储matched。
     const matched = nodes.filter(node => {
         if (line < node.range.start.line || line > node.range.end.line) return false;
         if (line === node.range.start.line && character < node.range.start.character) return false;
@@ -55,9 +65,11 @@ export function findNodeAtPosition(nodes: ASTNode[], line: number, character: nu
 
     if (matched.length === 0) return undefined;
 
+    // 变量：requestNode，用于存储请求节点。
     const requestNode = matched.find(node => node.type === 'RequestLine');
     if (requestNode) return requestNode;
 
+    // 变量：nonBodyNode，用于存储non正文节点。
     const nonBodyNode = matched.find(node => node.type !== 'Body');
     if (nonBodyNode) return nonBodyNode;
 

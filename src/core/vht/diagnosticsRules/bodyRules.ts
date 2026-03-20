@@ -1,8 +1,17 @@
 import { VhtAST } from '../types';
 import { VhtDiagnosticIssue } from './types';
 
+/**
+ * 方法：collectBodyIssues
+ * 说明：执行 collectBodyIssues 相关处理逻辑。
+ * @param ast 参数 ast。
+ * @returns 返回 VhtDiagnosticIssue[] 列表。
+ * 返回值示例：const list = collectBodyIssues(ast); // [{ id: 'demo' }]
+ */
 export function collectBodyIssues(ast: VhtAST): VhtDiagnosticIssue[] {
+    // 变量：issues，用于存储issues。
     const issues: VhtDiagnosticIssue[] = [];
+    // 变量：body，用于存储正文。
     const body = ast.sections.body;
 
     if (!body) {

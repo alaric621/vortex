@@ -19,7 +19,15 @@ export class VhtConverter {
      * 将解析出的 AST 转换为结构化的 JSON 对象
      * 严谨点：处理多个相同类型的节点合并（如 Body 分多行解析的情况）
      */
+    /**
+     * 方法：astToJson
+     * 说明：执行 astToJson 相关处理逻辑。
+     * @param ast 参数 ast。
+     * @returns 返回 Collections 类型结果。
+     * 返回值示例：const result = astToJson(ast); // { id: 'req_demo', type: 'GET', name: 'users', folder: '/', url: 'https://example.com' }
+     */
     public astToJson(ast: VhtAST): Collections {
+        // 变量：result，用于存储result。
         const result: Collections = {
             type: 'GET',
             url: '',
@@ -72,16 +80,26 @@ export class VhtConverter {
      * 将 JSON 对象转换为规范的 VHT 字符串
      * 核心严谨逻辑：强制执行“Header 与脚本/Body 之间必须有空行”的规则
      */
+    /**
+     * 方法：jsonToVht
+     * 说明：执行 jsonToVht 相关处理逻辑。
+     * @param json 参数 json。
+     * @returns 返回 string 类型结果。
+     * 返回值示例：const text = jsonToVht({ ... }); // 'demo-value'
+     */
     public jsonToVht(json: Partial<Collections>): string {
+        // 变量：lines，用于存储lines。
         const lines: string[] = [];
 
         // 1. 请求行 (强制大写)
         const method = (json.type || 'GET').toUpperCase();
+        // 变量：url，用于存储地址。
         const url = json.url || 'http://localhost:3000';
         lines.push(`${method} ${url}`);
 
         // 2. Headers (按字母顺序排序，保证生成的 VHT 文件版本控制友好)
         if (json.headers) {
+            // 变量：sortedKeys，用于存储sortedkeys。
             const sortedKeys = Object.keys(json.headers).sort();
             sortedKeys.forEach(key => {
                 lines.push(`${key}: ${json.headers![key]}`);

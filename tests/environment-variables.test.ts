@@ -72,7 +72,13 @@ vi.mock("vscode", () => {
 });
 
 import * as vscode from "vscode";
-import { clearRuntimeVhtVariables, createMutableVhtVariables, getVhtVariables, setRuntimeVhtVariables } from "../src/env";
+import {
+  clearRuntimeVhtVariables,
+  createMutableVhtVariables,
+  getVhtVariables,
+  refreshBaseVhtVariables,
+  setRuntimeVhtVariables
+} from "../src/context";
 import { prepareRuntimeVariables } from "../src/core/runtimeVariables";
 import { VhtParser } from "../src/core/vht/parser";
 import { getVariableCompletions } from "../src/core/vht/variableCompletion";
@@ -235,5 +241,74 @@ describe("workspace environment variables", () => {
       env: "dev"
     });
     expect(getVhtVariables(documentUri)).toEqual(variables);
+  });
+
+  it("isolates request mutations inside pre hooks", async () => {
+    const documentUri = vscode.Uri.file(path.join(workspaceRoot, "request.vht"));
+    const request = {
+      id: "req_preview",
+      type: "GET",
+      name: "preview",
+      folder: "/",
+      url: "https://example.com",
+      headers: {
+        Authorization: "Bearer old"
+      },
+      body: "",
+      scripts: {
+        pre: "request.headers.Authorization = 'Bearer new'; request.name = 'changed';"
+      }
+    };
+
+    await prepareRuntimeVariables(documentUri, request);
+
+    expect(request).toEqual({
+      id: "req_preview",
+      type: "GET",
+      name: "preview",
+      folder: "/",
+      url: "https://example.com",
+      headers: {
+        Authorization: "Bearer old"
+      },
+      body: "",
+      scripts: {
+        pre: "request.headers.Authorization = 'Bearer new'; request.name = 'changed';"
+      }
+    });
+  });
+
+  it("caches workspace config reads until the cache is refreshed", () => {
+    const documentUri = vscode.Uri.file(path.join(workspaceRoot, "request.vht"));
+    const configPath = path.join(workspaceRoot, "vortex.json");
+
+    fs.writeFileSync(
+      configPath,
+      JSON.stringify({
+        variables: {
+          token: "first"
+        }
+      }),
+      "utf8"
+    );
+
+    expect(getVhtVariables(documentUri)).toEqual({ token: "first" });
+    expect(getVhtVariables(documentUri)).toEqual({ token: "first" });
+
+    fs.writeFileSync(
+      configPath,
+      JSON.stringify({
+        variables: {
+          token: "second"
+        }
+      }),
+      "utf8"
+    );
+
+    expect(getVhtVariables(documentUri)).toEqual({ token: "first" });
+
+    refreshBaseVhtVariables(documentUri);
+
+    expect(getVhtVariables(documentUri)).toEqual({ token: "second" });
   });
 });

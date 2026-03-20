@@ -1,117 +1,179 @@
-import * as vscode from 'vscode';
-import { getVhtVariables } from '../../env';
-import { Range as VhtRange } from './types';
-import { collectDiagnosticIssues } from './diagnosticsRules';
-import { VhtDiagnosticIssue } from './diagnosticsRules/types';
-import { DocumentAstCache } from './documentAstCache';
+import * as vscode from "vscode";
+import { getVhtVariables } from "../../context";
+import { collectDiagnosticIssues } from "./diagnosticsRules";
+import { VhtDiagnosticIssue } from "./diagnosticsRules/types";
+import { DocumentAstCache } from "./documentAstCache";
+import { toVsCodeRange } from "../../utils/range";
+import { Range as VhtRange } from "./types";
 
 export class VhtDiagnostics {
-    private readonly collection: vscode.DiagnosticCollection;
-    private readonly timers: Map<string, NodeJS.Timeout>;
+  // 变量：collection，用于存储collection。
+  private readonly collection = vscode.languages.createDiagnosticCollection("vht-linter");
+  // 变量：timers，用于存储timers。
+  private readonly timers = new Map<string, NodeJS.Timeout>();
 
-    constructor(private readonly astCache: DocumentAstCache = new DocumentAstCache()) {
-        // 在编辑器“问题”面板中显示的分类名称
-        this.collection = vscode.languages.createDiagnosticCollection('vht-linter');
-        this.timers = new Map();
+  constructor(private readonly astCache: DocumentAstCache = new DocumentAstCache()) {}
+
+  /**
+   * 方法：scheduleUpdate
+   * 说明：执行 scheduleUpdate 相关处理逻辑。
+   * @param document 参数 document。
+   * @param delayMs 参数 delayMs。
+   * @returns 无返回值，通过副作用完成处理。
+   * 返回值示例：scheduleUpdate(document, 1); // undefined
+   */
+  public scheduleUpdate(document: vscode.TextDocument, delayMs: number = 120): void {
+    if (document.languageId !== "vht") {
+      return;
     }
 
-    public scheduleUpdate(document: vscode.TextDocument, delayMs: number = 120) {
-        if (document.languageId !== 'vht') return;
+    // 变量：key，用于存储key。
+    const key = document.uri.toString();
+    this.clearPendingTimer(key);
+    this.timers.set(key, setTimeout(() => {
+      this.timers.delete(key);
+      this.update(document);
+    }, delayMs));
+  }
 
-        const key = document.uri.toString();
-        const existing = this.timers.get(key);
-        if (existing) {
-            clearTimeout(existing);
-        }
-
-        const timer = setTimeout(() => {
-            this.timers.delete(key);
-            this.update(document);
-        }, delayMs);
-
-        this.timers.set(key, timer);
+  /**
+   * 方法：update
+   * 说明：执行 update 相关处理逻辑。
+   * @param document 参数 document。
+   * @returns 无返回值，通过副作用完成处理。
+   * 返回值示例：update(document); // undefined
+   */
+  public update(document: vscode.TextDocument): void {
+    if (document.languageId !== "vht") {
+      return;
     }
 
-    /**
-     * 主更新逻辑：解析文本并同步错误到 VS Code
-     */
-    public update(document: vscode.TextDocument) {
-        if (document.languageId !== 'vht') return;
+    // 变量：ast，用于存储语法树。
+    const ast = this.astCache.get(document);
+    // 变量：issues，用于存储issues。
+    const issues = collectDiagnosticIssues(ast, document.getText(), getVhtVariables(document.uri));
+    this.collection.set(document.uri, [
+      ...ast.errors.map(error => createParserDiagnostic(error.range, error.message)),
+      ...issues.map(createRuleDiagnostic)
+    ]);
+  }
 
-        const text = document.getText();
-        const ast = this.astCache.get(document);
-        
-        const ruleIssues = collectDiagnosticIssues(ast, text, getVhtVariables(document.uri));
+  /**
+   * 方法：clear
+   * 说明：执行 clear 相关处理逻辑。
+   * @param document 参数 document。
+   * @returns 无返回值，通过副作用完成处理。
+   * 返回值示例：clear(document); // undefined
+   */
+  public clear(document: vscode.TextDocument): void {
+    this.clearPendingTimer(document.uri.toString());
+    this.astCache.delete(document);
+    this.collection.delete(document.uri);
+  }
 
-        const parserDiagnostics = ast.errors.map(err => this.createParserDiagnostic(err.range, err.message));
-        const ruleDiagnostics = ruleIssues.map(issue => this.createRuleDiagnostic(issue));
-        const diagnostics = [...parserDiagnostics, ...ruleDiagnostics];
+  /**
+   * 方法：getCollection
+   * 说明：执行 getCollection 相关处理逻辑。
+   * @param 无 无参数。
+   * @returns 返回 vscode.DiagnosticCollection 类型结果。
+   * 返回值示例：const result = getCollection(); // { ok: true }
+   */
+  public getCollection(): vscode.DiagnosticCollection {
+    return this.collection;
+  }
 
-        // 更新当前文档的错误集合
-        this.collection.set(document.uri, diagnostics);
+  /**
+   * 方法：clearPendingTimer
+   * 说明：执行 clearPendingTimer 相关处理逻辑。
+   * @param key 参数 key。
+   * @returns 无返回值，通过副作用完成处理。
+   * 返回值示例：clearPendingTimer('demo-value'); // undefined
+   */
+  private clearPendingTimer(key: string): void {
+    // 变量：timer，用于存储定时器。
+    const timer = this.timers.get(key);
+    if (!timer) {
+      return;
     }
 
-    /**
-     * 当文档关闭时，清除该文档的所有错误记录
-     */
-    public clear(document: vscode.TextDocument) {
-        const key = document.uri.toString();
-        const existing = this.timers.get(key);
-        if (existing) {
-            clearTimeout(existing);
-            this.timers.delete(key);
-        }
-        this.astCache.delete(document);
-        this.collection.delete(document.uri);
-    }
+    clearTimeout(timer);
+    this.timers.delete(key);
+  }
+}
 
-    /**
-     * 辅助工具：将 AST 内部的 Range 转换为 vscode.Range
-     */
-    private toVsCodeRange(range: VhtRange): vscode.Range {
-        return new vscode.Range(
-            range.start.line,
-            range.start.character,
-            range.end.line,
-            range.end.character
-        );
-    }
+/**
+ * 方法：createParserDiagnostic
+ * 说明：执行 createParserDiagnostic 相关处理逻辑。
+ * @param range 参数 range。
+ * @param message 参数 message。
+ * @returns 返回 vscode.Diagnostic 类型结果。
+ * 返回值示例：const result = createParserDiagnostic({ ... }, 'demo-value'); // { ok: true }
+ */
+function createParserDiagnostic(range: VhtRange, message: string): vscode.Diagnostic {
+  // 变量：diagnostic，用于存储诊断。
+  const diagnostic = new vscode.Diagnostic(
+    toVsCodeRange(range),
+    message,
+    vscode.DiagnosticSeverity.Error
+  );
+  diagnostic.source = "VHT Parser";
+  diagnostic.code = getParserDiagnosticCode(message);
+  return diagnostic;
+}
 
-    private createParserDiagnostic(range: VhtRange, message: string): vscode.Diagnostic {
-        const diagnostic = new vscode.Diagnostic(
-            this.toVsCodeRange(range),
-            message,
-            vscode.DiagnosticSeverity.Error
-        );
-        diagnostic.source = 'VHT Parser';
+/**
+ * 方法：getParserDiagnosticCode
+ * 说明：执行 getParserDiagnosticCode 相关处理逻辑。
+ * @param message 参数 message。
+ * @returns 命中时返回 string，未命中时返回 undefined。
+ * 返回值示例：const result = getParserDiagnosticCode('demo-value'); // 'demo-value' 或 undefined
+ */
+function getParserDiagnosticCode(message: string): string | undefined {
+  if (message.includes("空行")) {
+    return "missing-blank-line";
+  }
 
-        if (message.includes('空行')) {
-            diagnostic.code = 'missing-blank-line';
-        } else if (message.includes('Header')) {
-            diagnostic.code = 'invalid-header';
-        }
+  if (message.includes("Header")) {
+    return "invalid-header";
+  }
 
-        return diagnostic;
-    }
+  return undefined;
+}
 
-    private createRuleDiagnostic(issue: VhtDiagnosticIssue): vscode.Diagnostic {
-        const diagnostic = new vscode.Diagnostic(
-            this.toVsCodeRange(issue.range),
-            issue.message,
-            this.toSeverity(issue.severity)
-        );
-        diagnostic.code = issue.code;
-        diagnostic.source = issue.source ?? 'VHT Rules';
-        return diagnostic;
-    }
+/**
+ * 方法：createRuleDiagnostic
+ * 说明：执行 createRuleDiagnostic 相关处理逻辑。
+ * @param issue 参数 issue。
+ * @returns 返回 vscode.Diagnostic 类型结果。
+ * 返回值示例：const result = createRuleDiagnostic({ ... }); // { ok: true }
+ */
+function createRuleDiagnostic(issue: VhtDiagnosticIssue): vscode.Diagnostic {
+  // 变量：diagnostic，用于存储诊断。
+  const diagnostic = new vscode.Diagnostic(
+    toVsCodeRange(issue.range),
+    issue.message,
+    toSeverity(issue.severity)
+  );
+  diagnostic.code = issue.code;
+  diagnostic.source = issue.source ?? "VHT Rules";
+  return diagnostic;
+}
 
-    private toSeverity(severity: VhtDiagnosticIssue['severity']): vscode.DiagnosticSeverity {
-        if (severity === 'error') return vscode.DiagnosticSeverity.Error;
-        if (severity === 'warning') return vscode.DiagnosticSeverity.Warning;
-        return vscode.DiagnosticSeverity.Information;
-    }
+/**
+ * 方法：toSeverity
+ * 说明：执行 toSeverity 相关处理逻辑。
+ * @param severity 参数 severity。
+ * @returns 返回 vscode.DiagnosticSeverity 类型结果。
+ * 返回值示例：const result = toSeverity({ ... }); // { ok: true }
+ */
+function toSeverity(severity: VhtDiagnosticIssue["severity"]): vscode.DiagnosticSeverity {
+  if (severity === "error") {
+    return vscode.DiagnosticSeverity.Error;
+  }
 
-    public getCollection() {
-        return this.collection;
-    }
+  if (severity === "warning") {
+    return vscode.DiagnosticSeverity.Warning;
+  }
+
+  return vscode.DiagnosticSeverity.Information;
 }

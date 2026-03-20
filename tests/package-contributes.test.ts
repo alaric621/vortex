@@ -2,6 +2,20 @@ import { describe, expect, it } from "vitest";
 import packageJson from "../package.json";
 
 describe("package contributions", () => {
+  it("uses targeted activation events", () => {
+    expect(packageJson.activationEvents).toEqual([
+      "onLanguage:vht",
+      "onView:vortex-explorer",
+      "onFileSystem:vortex-fs",
+      "onCommand:vortex.request.refresh",
+      "onCommand:vortex.request.create",
+      "onCommand:vortex.request.rename",
+      "onCommand:vortex.request.delete",
+      "onCommand:vortex.request.send",
+      "onCommand:vortex.request.stop"
+    ]);
+  });
+
   it("registers strict output format configuration", () => {
     const config = packageJson.contributes.configuration?.properties?.["vortex.output.strictLogFormat"];
     expect(config).toBeDefined();
