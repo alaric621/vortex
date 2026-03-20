@@ -14,14 +14,20 @@
     "onLanguage:vht",
     "onView:vortex-explorer",
     "onFileSystem:vortex-fs",
-    "onCommand:vortex.request.refresh",
-    "onCommand:vortex.request.create",
-    "onCommand:vortex.request.rename",
-    "onCommand:vortex.request.delete",
-    "onCommand:vortex.request.send",
-    "onCommand:vortex.request.stop"
+    "onCommand:vortex.request.create"
   ],
   "main": "./dist/extension.js",
+  "scripts": {
+    "compile": "tsc -b tsconfig.app.json --force",
+    "watch": "tsc -b tsconfig.app.json --watch --force",
+    "clean": "tsc -b --clean",
+    "typecheck": "tsc -b",
+    "typecheck:app": "tsc -p tsconfig.app.json --noEmit",
+    "typecheck:tests": "tsc -p tsconfig.vitest.json --noEmit",
+    "test": "vitest",
+    "test:run": "vitest --run",
+    "test:coverage": "vitest --run --coverage --coverage.provider=v8 --coverage.reporter=text --coverage.reporter=json-summary --coverage.thresholds.lines=65 --coverage.thresholds.functions=60 --coverage.thresholds.statements=65 --coverage.thresholds.branches=50"
+  },
   "contributes": {
     "configuration": {
       "title": "Vortex",
@@ -215,17 +221,6 @@
         "when": "editorTextFocus && resourceExtname == .vht && vortex.client.busy"
       }
     ]
-  },
-  "scripts": {
-    "compile": "tsc -p tsconfig.app.json",
-    "watch": "tsc -watch",
-    "clean": "tsc -b --clean",
-    "typecheck": "tsc -b",
-    "typecheck:app": "tsc -p tsconfig.app.json --noEmit",
-    "typecheck:tests": "tsc -p tsconfig.vitest.json --noEmit",
-    "test": "vitest",
-    "test:run": "vitest --run",
-    "test:coverage": "vitest --run --coverage --coverage.provider=v8 --coverage.reporter=text --coverage.reporter=json-summary --coverage.thresholds.lines=65 --coverage.thresholds.functions=60 --coverage.thresholds.statements=65 --coverage.thresholds.branches=50"
   },
   "devDependencies": {
     "@types/node": "22.x",
