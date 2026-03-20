@@ -4,6 +4,7 @@
   "description": "",
   "version": "0.0.1",
   "publisher": "alaric",
+  "icon": "resources/logo.png",
   "engines": {
     "vscode": "^1.109.0"
   },
@@ -11,15 +12,7 @@
     "Other"
   ],
   "activationEvents": [
-    "onLanguage:vht",
-    "onView:vortex-explorer",
-    "onFileSystem:vortex-fs",
-    "onCommand:vortex.request.refresh",
-    "onCommand:vortex.request.create",
-    "onCommand:vortex.request.rename",
-    "onCommand:vortex.request.delete",
-    "onCommand:vortex.request.send",
-    "onCommand:vortex.request.stop"
+    "onFileSystem:vortex-fs"
   ],
   "main": "./dist/extension.js",
   "scripts": {
