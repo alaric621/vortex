@@ -186,7 +186,7 @@
     "test:coverage": "vitest --run --coverage --coverage.provider=v8 --coverage.reporter=text --coverage.reporter=json-summary --coverage.thresholds.lines=65 --coverage.thresholds.functions=60 --coverage.thresholds.statements=65 --coverage.thresholds.branches=50"
   },
   "devDependencies": {
-    "@types/node": "22.x",
+    "@types/node": "25.x",
     "@types/vscode": "^1.109.0",
     "@vitest/coverage-v8": "^4.0.18",
     "msw": "^2.12.11",
